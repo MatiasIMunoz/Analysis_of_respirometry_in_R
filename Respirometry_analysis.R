@@ -77,8 +77,8 @@ ggplot(df, aes(x = Seconds, y = FlowRate))+
 ###-###-###-###-###-###-###-###-###-###-
 n_frogs <-  7 # number of frogs in the respirometer
 n_reps <- 4 # number of repetitions EXCLUDING first round
-sampling_window <- 600 # length of sampling window, in samples (= seconds)
-first_marker <- ((120*(n_frogs+1)) + (sampling_window*(n_frogs+2))) # compute the sample of the first marker of interest
+sampling_window_s <- 600 # length of sampling window, in samples (= seconds)
+first_marker_s <- ((120*(n_frogs+1)) + (sampling_window_s*(n_frogs+2))) # calculate the sample of the first marker of interest (in samples = seconds)
 enclosure_mins <- n_frogs*10 # Ten minutes per channel
 
 # Color palette
@@ -159,12 +159,12 @@ peaks_Ch2 <- list()
 for (i in 1:n_reps) {
   if (i == 1) {
     # For the first peak
-    start_peak <- first_marker
-    end_peak <- first_marker + sampling_window + 1
+    start_peak <- first_marker_s
+    end_peak <- first_marker_s + sampling_window_s + 1
   } else {
     # For subsequent peaks
-    start_peak <- peaks_Ch2[[i - 1]][2] + sampling_window * n_frogs - 1
-    end_peak <- peaks_Ch2[[i - 1]][2] + sampling_window * n_frogs + 600
+    start_peak <- peaks_Ch2[[i - 1]][2] + sampling_window_s * n_frogs - 1
+    end_peak <- peaks_Ch2[[i - 1]][2] + sampling_window_s * n_frogs + 600
   }
   
   # Store the calculated peak range
@@ -175,12 +175,12 @@ for (i in 1:n_reps) {
 peaks_Ch2
 
 # Compute peaks for channel 3, 4, 5, 6, 7 and 8 using lapply (just add 600 to the previous channels).
-peaks_Ch3 <- lapply(peaks_Ch2, function(p) p + sampling_window)
-peaks_Ch4 <- lapply(peaks_Ch3, function(p) p + sampling_window)
-peaks_Ch5 <- lapply(peaks_Ch4, function(p) p + sampling_window)
-peaks_Ch6 <- lapply(peaks_Ch5, function(p) p + sampling_window)
-peaks_Ch7 <- lapply(peaks_Ch6, function(p) p + sampling_window)
-peaks_Ch8 <- lapply(peaks_Ch7, function(p) p + sampling_window)
+peaks_Ch3 <- lapply(peaks_Ch2, function(p) p + sampling_window_s)
+peaks_Ch4 <- lapply(peaks_Ch3, function(p) p + sampling_window_s)
+peaks_Ch5 <- lapply(peaks_Ch4, function(p) p + sampling_window_s)
+peaks_Ch6 <- lapply(peaks_Ch5, function(p) p + sampling_window_s)
+peaks_Ch7 <- lapply(peaks_Ch6, function(p) p + sampling_window_s)
+peaks_Ch8 <- lapply(peaks_Ch7, function(p) p + sampling_window_s)
 
 
 ###-###-###-###-###-###-###-###-###-###-
@@ -198,7 +198,7 @@ peaks_Ch6_df <- do.call(rbind, peaks_Ch6); colnames(peaks_Ch6_df) <- c("start", 
 peaks_Ch7_df <- do.call(rbind, peaks_Ch7); colnames(peaks_Ch7_df) <- c("start", "end"); peaks_Ch7_df <- as.data.frame(peaks_Ch7_df)
 peaks_Ch8_df <- do.call(rbind, peaks_Ch8); colnames(peaks_Ch8_df) <- c("start", "end"); peaks_Ch8_df <- as.data.frame(peaks_Ch8_df)
 
-# Figure of peaks
+# Figure of peaks that will be analyzed.
 peaks_plot <-
 ggplot(df, aes(x = Seconds, y = VolO2))+
   ggtitle(label = filename)+
@@ -229,7 +229,7 @@ ggplot(df, aes(x = Seconds, y = VolO2))+
 peaks_plot
 
 # Save plot.
-ggsave(filename = paste0(getwd(),"/R output/Images/",filename, "_peaks_plot.png"), 
+ggsave(filename = paste0(getwd(),"/figures/",filename, "_peaks_plot.png"), 
        peaks_plot, width = 15, height = 5)
 
 ###-###-###-###-###-###-###-###-###-###-
@@ -315,7 +315,7 @@ results
 
 mean(results$VO2_mlhr)
 ## 7.4) Export results----
-write.csv(results, file = paste(getwd(), "/R output/",filename, "_Routput.csv", sep = ""),)
+write.csv(results, file = paste(getwd(), "/R_output/",filename, "_Routput.csv", sep = ""),)
 
 # 8) Calculate averages per channel (i.e., per individual) ----
 results$Channel <- as.factor(results$Channel)
@@ -332,5 +332,5 @@ mean_results <- results %>%
 mean_results
 
 ## 8.1) Export MEAN results----
-write.csv(mean_results, file = paste(getwd(), "/R output/",filename, "_MEAN_Routput.csv", sep = ""),)
+write.csv(mean_results, file = paste(getwd(), "/R_output/",filename, "_MEAN_Routput.csv", sep = ""),)
 
