@@ -318,6 +318,8 @@ mean(results$VO2_mlhr)
 write.csv(results, file = paste(getwd(), "/R_output/",filename, "_Routput.csv", sep = ""),)
 
 # 8) Calculate averages per channel (i.e., per individual) ----
+# This could be easily done in Excel from the file created above in
+# point 7.4), but it may be faster in R. 
 results$Channel <- as.factor(results$Channel)
 str(results)
 
