@@ -1,0 +1,49 @@
+---
+title: "Analysis of stop-flow respirometry data exported from ExpeData"
+author: "Matias I. Munoz"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load the data
+
+I exported text files from ExpeData containing all the channels we recorded (e.g., O2, CO2, WVP, flow rate, etc...). These files were drift- an lag- corrected in ExpeData already (that's why the file names say "LagDrift" at the end. These are stored in a folder called "data".
+
+```{r data}
+# Folder containing the .txt files exported from ExpeData.
+folder <- "/data/"
+
+# Name of the file.
+filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
+```
+
+The file name can be changed for any of those in the "data" folder.
+
+```{r}
+# Load data frame.
+df <- read.table(paste0(getwd(),folder, filename), sep = "\t", header = TRUE)
+str(df)
+head(df)
+```
+
+We transform seconds to minutes (divide by 60) and add a new column to the data frame:
+
+```{r}
+# Convert Seconds to Minutes and add new column called "Minutes"
+df$Minutes <- df$Seconds/60
+head(df)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
