@@ -9,6 +9,17 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+## Load libraries
+```{r message=FALSE, warning=FALSE}
+library(ggplot2) # for general plotting
+library(pracma) # for numerical integration
+library(viridis) # for color blind friendly palettes
+library(dplyr) # for data manipulation
+
+```
+
+
+
 ## Load the data
 
 I exported text files from ExpeData containing all the channels we recorded (e.g., O2, CO2, WVP, flow rate, etc...). These files were drift- an lag- corrected in ExpeData already (that's why the file names say "LagDrift" at the end. These are stored in a folder called "data".
@@ -21,16 +32,15 @@ folder <- "/data/"
 filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
 ```
 
-The file name can be changed for any of those in the "data" folder.
+The 'filename' object can be changed for any of those in the "data" folder.
 
 ```{r}
 # Load data frame.
 df <- read.table(paste0(getwd(),folder, filename), sep = "\t", header = TRUE)
-str(df)
 head(df)
 ```
 
-We transform seconds to minutes (divide by 60) and add a new column to the data frame:
+Transform seconds to minutes (divide by 60) and add a new column to the data frame:
 
 ```{r}
 # Convert Seconds to Minutes and add new column called "Minutes"
@@ -38,12 +48,37 @@ df$Minutes <- df$Seconds/60
 head(df)
 ```
 
-## Including Plots
-
-You can also embed plots, for example:
+## Plot data before doing any modifications
 
 ```{r pressure, echo=FALSE}
-plot(pressure)
+#Figure of O2 peaks
+ggplot(df, aes(x = Seconds, y = O2))+
+  geom_line()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  ggtitle("O2 vs time")+
+  theme_bw()
+
+
+# Figure of CO2 peaks
+ggplot(df, aes(x = Seconds, y = CO2))+
+  geom_line()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+  ggtitle("CO2 vs time")+
+  theme_bw()
+
+# Figure of WVP
+ggplot(df, aes(x = Seconds, y = WVP))+
+  geom_line()+
+  geom_hline(yintercept = 0, linetype = "dashed")+
+    ggtitle("Water vapor vs time")+
+  theme_bw()
+
+# Figure of flow rate
+ggplot(df, aes(x = Seconds, y = FlowRate))+
+  geom_line()+
+  ggtitle("Flow rate vs time")+
+  theme_bw()
+
 ```
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
