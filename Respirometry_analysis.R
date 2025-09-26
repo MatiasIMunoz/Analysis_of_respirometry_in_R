@@ -1,10 +1,7 @@
-# Testing github version control 2
-# 22 Sep 2025
-
 
 ###-###-###-###-###-###-###-###-###-###-
 #
-# 0) Script for the analysis of respirometry data for Rachel's ABS poster.
+# 0) Script for the analysis of respirometry data.
 #
 ###-###-###-###-###-###-###-###-###-###-
 
