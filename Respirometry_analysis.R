@@ -24,7 +24,8 @@ library(dplyr) # for data manipulation
 folder <- "/data/"
 
 # Name of the file.
-filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
+filename <- "Data_06-24-2025_001_DAY.txt"
+#filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
 #filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
 #filename <- "Data_06-27-2025_001_DAY_LagDrift.txt" #n_frogs = 7, n_reps = 4
 #filename <- "Data_06-26-2025_001_DAY_SETUP1_LagDrift.txt" #n_frogs = 7, n_reps = 4
