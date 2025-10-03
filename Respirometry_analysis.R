@@ -10,7 +10,7 @@ library(ggplot2) # for general plotting
 library(pracma) # for numerical integration
 library(viridis) # for color blind friendly palettes
 library(dplyr) # for data manipulation
-
+library(seewave)
 
 ###-###-###-###-###-###-###-###-###-###-
 #
@@ -43,11 +43,89 @@ summary(df)
 # Convert Seconds to Minutes and add new column called "Minutes"
 df$Minutes <- df$Seconds/60
 
+# X) Cross correlation test ----
+xcorr_window_ini <-2511
+xcorr_window_end <-12579
+
+xcorr_df <- df[c(xcorr_window_ini:xcorr_window_end),]
+
+xcorr_df$O2_scaled <- scale(xcorr_df$O2)
+xcorr_df$FR_scaled <- scale(xcorr_df$FlowRate)
+xcorr_df$CO2_scaled <- scale(xcorr_df$CO2)
+xcorr_df$BP_scaled <- scale(xcorr_df$BP)
+xcorr_df$WVP_scaled <- scale(xcorr_df$WVP)
+
+## Lag correct O2 ----
+ggplot(xcorr_df)+
+  geom_line(aes(x = Seconds, y = O2_scaled), color = alpha("grey50", 0.5)) +
+  geom_line(aes(x = Seconds, y = FR_scaled), color = "blue")+
+ theme_bw()
+
+
+ccf_O2 <- ccf(y = as.numeric(xcorr_df$O2_scaled), 
+               x = as.numeric(xcorr_df$FR_scaled), 
+               lag.max = 500)
+max_lag_index <- which.max(abs(ccf_O2$acf))
+max_lag <- ccf_O2$lag[max_lag_index];max_lag # find lag
+abline(v = max_lag, col = "red")
+
+
+ggplot(xcorr_df[c(1:6000),])+
+  geom_line(aes(x = Seconds, y = O2_scaled), color = alpha("grey50", 0.5)) +
+  geom_line(aes(x = Seconds+max_lag, y = O2_scaled), color =alpha("red", 0.5))+
+  geom_line(aes(x = Seconds, y = FR_scaled), color = "blue")+
+  theme_bw()
+
+
+## Lag correct CO2 ----
+ggplot(xcorr_df)+
+  geom_line(aes(x = Seconds, y = CO2_scaled, color = "black")) +
+  geom_line(aes(x = Seconds, y = FR_scaled, color = "blue"))+
+  theme_bw()
+
+
+ccf_CO2 <- ccf(y = as.numeric(xcorr_df$CO2_scaled), 
+               x = as.numeric(xcorr_df$FR_scaled), 
+               lag.max = 500)
+max_lag_index <- which.max(abs(ccf_CO2$acf))
+max_lag <- ccf_CO2$lag[max_lag_index];max_lag # find lag
+abline(v = max_lag, col = "red")
+
+
+ggplot(xcorr_df[c(1:2000),])+
+  geom_line(aes(x = Seconds, y = CO2_scaled), color = alpha("grey50", 0.5)) +
+  geom_line(aes(x = Seconds+max_lag, y = CO2_scaled), color =alpha("red", 0.5))+
+  geom_line(aes(x = Seconds, y = FR_scaled), color = "blue")+
+  theme_bw()
+
+## Lag correct WVP ----
+ggplot(xcorr_df)+
+  geom_line(aes(x = Seconds, y = WVP_scaled, color = "black")) +
+  geom_line(aes(x = Seconds, y = FR_scaled, color = "blue"))+
+  theme_bw()
+
+
+ccf_WVP <- ccf(y = as.numeric(xcorr_df$WVP_scaled), 
+               x = as.numeric(xcorr_df$FR_scaled), 
+               lag.max = 500)
+max_lag_index <- which.max(abs(ccf_WVP$acf))
+max_lag <- ccf_WVP$lag[max_lag_index];max_lag # find lag
+abline(v = max_lag, col = "red")
+
+
+ggplot(xcorr_df[c(1:2000),])+
+  geom_line(aes(x = Seconds, y = WVP_scaled), color = alpha("grey50", 0.5)) +
+  geom_line(aes(x = Seconds+max_lag, y = WVP_scaled), color =alpha("red", 0.5))+
+  geom_line(aes(x = Seconds, y = FR_scaled), color = "blue")+
+  theme_bw()
+
+
+
 # Inspect the recording visually
 # Figure of O2 peaks
 ggplot(df, aes(x = Seconds, y = O2))+
   geom_line()+
-  geom_hline(yintercept = 0, linetype = "dashed")+
+ # geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()
 
 # Figure of CO2 peaks
