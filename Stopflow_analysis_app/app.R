@@ -2,94 +2,91 @@ library(shiny)
 library(bslib)
 library(ggplot2)
 
-# Define UI ----
-ui <- page_sidebar(
-  
+ui <- page_navbar(
   title = "Uploading Files",
   
-  sidebar = sidebar(
-    fileInput(
-      "file1",
-      "Choose CSV File",
-      multiple = FALSE,
-      accept = c("text/csv", ".csv")
-    ),
-    tags$hr(),
-    radioButtons(
-      "disp",
-      "Display",
-      choices = c(Head = "head", All = "all"),
-      selected = "head"
-    )
+  # Tab 1: Load data
+  nav_panel("Load data",
+            layout_sidebar(
+              sidebar = sidebar(
+                fileInput("file1", "Choose CSV File",
+                          multiple = FALSE,
+                          accept = c("text/csv", ".csv")),
+                tags$hr(),
+                radioButtons("disp", "Display",
+                             choices = c(Head = "head", "All (not recommended)" = "all"),
+                             selected = "head")
+              ),
+              tableOutput("contents")
+            )
   ),
   
-  # Main panel: data preview + plot
-  mainPanel(
-    tableOutput("contents"),
-    plotOutput("plotO2", width = "150%"),
-    plotOutput("plotCO2", width = "150%"),
-    plotOutput("plotFR", width = "150%"),
+  # Tab 2: Plot data
+  nav_panel("Plot raw data",
+            layout_sidebar(
+              sidebar = sidebar(
+                selectInput("yvar", "Y-axis variable:", choices = NULL),
+                checkboxInput("show_markers", "Show markers", value = FALSE),
+                sliderInput("x_zoom", "X-axis zoom:", 
+                            min = 0, max = max(df$Seconds), value = c(0, max(df$Seconds)))
+              ),
+              plotOutput("plotMain", width = "100%"),
+              br(),
+              plotOutput("plotZoom", width = "100%")
+            )
+  ),
+  
+  # Tab 3: Analysis placeholder
+  nav_panel("Lag and drift correction",
+            layout_sidebar(
+              sidebar = sidebar(
+                h4("Analysis options will go here")
+              ),
+              h4("Coming soon...")
+            )
   )
 )
 
-# Define server logic ----
-server <- function(input, output) {
+server <- function(input, output, session) {
   
-  # Reactive expression to read file
+  # Reactive CSV data
   datafile <- reactive({
     req(input$file1)
     read.csv(input$file1$datapath, sep = ",", quote = '"')
   })
   
-  # Show data table
+  # Update Y variable selector after file is loaded
+  observeEvent(datafile(), {
+    cols <- setdiff(names(datafile()), "Seconds")  # exclude X-axis
+    updateSelectInput(session, "yvar", choices = cols, selected = cols[1])
+  })
+  
+  # Data preview
   output$contents <- renderTable({
     df <- datafile()
     if (input$disp == "head") head(df) else df
   })
   
-  # Show plotO2
-  output$plotO2 <- renderPlot({
+  # Dynamic plot
+  output$plotMain <- renderPlot({
     df <- datafile()
+    req(input$yvar)
     
-    ggplot(df, aes(x = Seconds, y = O2)) +
-      geom_line(color = "blue") +
-      theme_minimal(base_size = 14) +
-      labs(
-        title = "O2 vs Time",
-        x = "Seconds",
-        y = "O2"
-      )
-  })
-  
-  # Show plotCO2
-  output$plotCO2 <- renderPlot({
-    df <- datafile()
-    
-    ggplot(df, aes(x = Seconds, y = CO2)) +
-      geom_line(color = "red") +
-      theme_minimal(base_size = 14) +
-      labs(
-        title = "CO2 vs Time",
-        x = "Seconds",
-        y = "CO2"
-      )
-  })
-  
-  # Show plotFR
-  output$plotFR <- renderPlot({
-    df <- datafile()
-    
-    ggplot(df, aes(x = Seconds, y = FlowRate)) +
+    p <- ggplot(df, aes(x = Seconds, y = .data[[input$yvar]])) +
       geom_line(color = "black") +
       theme_minimal(base_size = 14) +
-      labs(
-        title = "FlowRate vs Time",
-        x = "Seconds",
-        y = "FlowRate"
-      )
+      labs(title = paste(input$yvar, "vs Time"), x = "Seconds", y = input$yvar)
+    
+    
+    if (input$show_markers && "Marker" %in% names(df)) {
+      marker_times <- df$Seconds[df$Marker != -1]
+      if (length(marker_times) > 0) {
+        p <- p + geom_vline(xintercept = marker_times, color = "red", linetype = "solid", alpha = 0.5)
+      }
+    }
+    
+    p
   })
 }
 
-
-# Run app ----
 shinyApp(ui, server)
