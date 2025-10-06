@@ -14,7 +14,7 @@ library(seewave)
 
 ###-###-###-###-###-###-###-###-###-###-
 #
-# 1) Load data frame ----
+v# 1) Load data frame ----
 # Data frame has been lag and drift corrected in ExpeData. No other changes made.
 # All channels were exported as .txt file.
 #
@@ -24,6 +24,8 @@ library(seewave)
 folder <- "/data/"
 
 # Name of the file.
+filename_test <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
+str(filename_test)
 filename <- "Data_06-24-2025_001_DAY.txt"
 #filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
 #filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
