@@ -2,6 +2,11 @@ library(shiny)
 library(bslib)
 library(ggplot2)
 
+
+#********************************
+# User interface
+#********************************
+
 ui <- page_navbar(
   title = "Uploading Files",
   
@@ -21,7 +26,7 @@ ui <- page_navbar(
             )
   ),
   
-  # Tab 2: Plot data
+  # Tab 2: Plot raw data
   nav_panel("Plot raw data",
             layout_sidebar(
               sidebar = sidebar(
@@ -59,6 +64,14 @@ ui <- page_navbar(
   ),
   
 )
+
+
+
+
+#********************************
+# Server
+#********************************
+
 
 server <- function(input, output, session) {
   
