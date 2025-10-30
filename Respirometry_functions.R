@@ -30,21 +30,21 @@ lag_correct_channels <- function(df,
   lags <- numeric(length(channels))
   names(lags) <- channels
   
+  # Set up 3-panel figure
+  par(mfrow = c(1, length(channels)))
+  
   # Compute lag for each channel
   for(ch in channels){
-    ccf_res <- ccf(x = as.numeric(xcorr_df[,"FlowRate"]), y = as.numeric(xcorr_df[,ch]), lag.max = 500)
+    ccf_res <- ccf(x = as.numeric(xcorr_df[,"FlowRate"]), y = as.numeric(xcorr_df[,ch]), lag.max = 500, main = "")
     max_lag_index <- which.max(abs(ccf_res$acf))
     max_lag <- ccf_res$lag[max_lag_index];max_lag # find lag
     abline(v = max_lag, col = "red")
     lag_val <- ccf_res$lag[max_lag_index]
     lags[ch] <- lag_val
+    title(paste0(ch," (lag = ", lag_val," seconds)") )
     
   }
   print(lags)
-  
-  # Add correction to data frame
-  df$O2_lag <- df$O2 + lags[[1]]
-  df$CO2_lag <- df$CO2 + lags[[2]]
-  df$WVP_lag <- df$WVP + lags[[3]]
+
 }
 

@@ -10,15 +10,27 @@ library(ggplot2) # for general plotting
 library(pracma) # for numerical integration
 library(viridis) # for color blind friendly palettes
 library(dplyr) # for data manipulation
-library(seewave)
+#library(seewave)
 
-###-###-###-###-###-###-###-###-###-###-
+source("Respirometry_functions.R")
+
+my.theme <-theme_bw()+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title = element_text(face="bold"), 
+        legend.position="none",
+        strip.background = element_rect(colour = "black", fill = "white"), 
+        strip.text.x = element_text(colour = "black", face = "bold"),
+        plot.tag = element_text(face = "bold"))
+
+
+#******************************************
 #
 # 1) Load data frame ----
+#
+#******************************************
+
 # Data frame has been lag and drift corrected in ExpeData. No other changes made.
 # All channels were exported as .txt file.
-#
-###-###-###-###-###-###-###-###-###-###-
 
 # Folder containing the .txt files exported from ExpeData.
 folder <- "/data/"
@@ -41,18 +53,62 @@ df <- read.table(paste0(getwd(),folder, filename), sep = "\t", header = TRUE)
 str(df)
 summary(df)
 
-
 # Convert Seconds to Minutes and add new column called "Minutes"
 df$Minutes <- df$Seconds/60
+
+# Change marker at t=0 to 50, so its recognized as a marker "B" later.
+df[1, 8] <- 50
+head(df)
+# Define number of frogs and repetitions
+nfrogs <- 5
+nreps <- 7
+
+marker_times <- df$Seconds[df$Marker != -1];length(marker_times)
+
+
+marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B");length(marker_names)
+
+#marker_names[length(marker_names)] <- "B"  # set last one to "B"
+names(marker_times) <- marker_names
+marker_times
+
+ggplot(df)+
+  geom_line(aes(x = Seconds, y = O2), color = alpha("grey50", 0.5)) +
+  geom_vline(xintercept = marker_times, col = "green")+
+  my.theme
 
 #********************************
 #*
 # 2) Correct lag / cross-correlation ----
 #*
 #********************************
+
+#first, automatically select a window for the cross-correlation
+b_idx <- which(names(marker_times) == "B") # Find indices of all "B" markers
+xcorr_window <- marker_times[c((b_idx[3]),(b_idx[4]))]# Select 2nd and 3rd "B"
+
+
+ggplot(df)+
+  geom_vline(xintercept = marker_times, col = "grey80")+
+  annotate(geom = "text",x = marker_times,y = 21.6,label = names(marker_times),vjust = -0,hjust = 0, size = 4,color = "grey80") +
+  geom_line(aes(x = Seconds, y = O2), color = alpha("black", 0.5)) +
+  #geom_line(aes(x = Seconds + lags_ch[[1]], y = O2), color = alpha("red", 0.5)) +
+  lims(x = c(min(df$Seconds), max(df$Seconds)))+
+  labs(x = "Time (s)", y = "O2")+
+  annotate("rect", xmin =  xcorr_window[[1]], xmax = xcorr_window[[2]], ymin = -Inf, ymax = Inf,alpha = 0.2, fill = "red")+
+  my.theme
+  
+
 lags_ch <- lag_correct_channels(df)
 
-head(df)
+ggplot(df)+
+  geom_vline(xintercept = marker_times, col = "grey80")+
+  annotate(geom = "text",x = marker_times,y = 21.6,label = names(marker_times),vjust = -0,hjust = 0, size = 5,color = "grey80") +
+  geom_line(aes(x = Seconds, y = O2), color = alpha("black", 0.5)) +
+  geom_line(aes(x = Seconds + lags_ch[[1]], y = O2), color = alpha("red", 0.5)) +
+  lims(x = c(0, 2000))+
+  theme_bw()
+
 
 lags_ch$lags
 df$O2_lagcorr <- df$O2 + lags_ch[[1]]
