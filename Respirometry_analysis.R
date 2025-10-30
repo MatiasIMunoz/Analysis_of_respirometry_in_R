@@ -14,7 +14,7 @@ library(seewave)
 
 ###-###-###-###-###-###-###-###-###-###-
 #
-v# 1) Load data frame ----
+# 1) Load data frame ----
 # Data frame has been lag and drift corrected in ExpeData. No other changes made.
 # All channels were exported as .txt file.
 #
@@ -24,8 +24,8 @@ v# 1) Load data frame ----
 folder <- "/data/"
 
 # Name of the file.
-filename_test <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
-str(filename_test)
+#filename_test <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
+#str(filename_test)
 filename <- "Data_06-24-2025_001_DAY.txt"
 #filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
 #filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
@@ -45,37 +45,46 @@ summary(df)
 # Convert Seconds to Minutes and add new column called "Minutes"
 df$Minutes <- df$Seconds/60
 
-# X) Cross correlation test ----
-xcorr_window_ini <-2511
-xcorr_window_end <-12579
+#********************************
+#*
+# 2) Correct lag / cross-correlation ----
+#*
+#********************************
+lag_correct_channels(df)
 
-xcorr_df <- df[c(xcorr_window_ini:xcorr_window_end),]
 
-xcorr_df$O2_scaled <- scale(xcorr_df$O2)
-xcorr_df$FR_scaled <- scale(xcorr_df$FlowRate)
-xcorr_df$CO2_scaled <- scale(xcorr_df$CO2)
-xcorr_df$BP_scaled <- scale(xcorr_df$BP)
-xcorr_df$WVP_scaled <- scale(xcorr_df$WVP)
+# Create df_2 with scaled variables
+df_lagcorr <- df
+
+# Scale selected columns
+cols_to_scale <- c("O2", "CO2", "BP", "WVP", "FlowRate")
+df_lagcorr[cols_to_scale] <- scale(df[cols_to_scale])
+
+# Define a window to run cross correlation (in seconds)
+xcorr_ini <-2511
+xcorr_end <-12579
+
+xcorr_df <- df_lagcorr[c(xcorr_ini:xcorr_end),]
 
 ## Lag correct O2 ----
 ggplot(xcorr_df)+
-  geom_line(aes(x = Seconds, y = O2_scaled), color = alpha("grey50", 0.5)) +
-  geom_line(aes(x = Seconds, y = FR_scaled), color = "blue")+
- theme_bw()
+  geom_line(aes(x = Seconds, y = O2), color = alpha("grey50", 0.5)) +
+  geom_line(aes(x = Seconds, y = FlowRate), color = "blue")+
+  theme_bw()
 
+ccf_O2 <- ccf(y = as.numeric(xcorr_df$O2), 
+              x = as.numeric(xcorr_df$FlowRate), 
+              lag.max = 500)
 
-ccf_O2 <- ccf(y = as.numeric(xcorr_df$O2_scaled), 
-               x = as.numeric(xcorr_df$FR_scaled), 
-               lag.max = 500)
 max_lag_index <- which.max(abs(ccf_O2$acf))
 max_lag <- ccf_O2$lag[max_lag_index];max_lag # find lag
 abline(v = max_lag, col = "red")
 
 
 ggplot(xcorr_df[c(1:6000),])+
-  geom_line(aes(x = Seconds, y = O2_scaled), color = alpha("grey50", 0.5)) +
-  geom_line(aes(x = Seconds+max_lag, y = O2_scaled), color =alpha("red", 0.5))+
-  geom_line(aes(x = Seconds, y = FR_scaled), color = "blue")+
+  geom_line(aes(x = Seconds, y = O2), color = alpha("grey50", 0.5)) +
+  geom_line(aes(x = Seconds+max_lag, y = O2), color =alpha("red", 0.5))+
+  geom_line(aes(x = Seconds, y = FlowRate), color = "blue")+
   theme_bw()
 
 
@@ -127,7 +136,7 @@ ggplot(xcorr_df[c(1:2000),])+
 # Figure of O2 peaks
 ggplot(df, aes(x = Seconds, y = O2))+
   geom_line()+
- # geom_hline(yintercept = 0, linetype = "dashed")+
+  # geom_hline(yintercept = 0, linetype = "dashed")+
   theme_bw()
 
 # Figure of CO2 peaks
@@ -146,6 +155,63 @@ ggplot(df, aes(x = Seconds, y = WVP))+
 ggplot(df, aes(x = Seconds, y = FlowRate))+
   geom_line()+
   theme_bw()
+
+#********************************
+#*
+# 2) Correct drift ----
+#* https://pmc.ncbi.nlm.nih.gov/articles/PMC2886696/#B5
+#********************************
+nfrogs <- 5
+nreps <- 7
+
+
+as.character(2:(nfrogs+1))
+
+marker_times <- df$Seconds[df$Marker != -1]
+names <- rep(c("B", as.character(2:(nfrogs+1))), nreps+1)
+
+names(marker_times) <- names
+
+ggplot(df, aes(x = Seconds, y = O2))+
+  geom_line()+
+  #lims(x = c(0, 2000))+
+  geom_vline(xintercept = marker_times, col = "red", alpha = 0.5)+
+  #geom_hline(yintercept = 20.95, linetype = "dashed")+
+  theme_bw()
+
+
+library(mgcv)
+fit_gam <- gam(O2 ~ s(Seconds), data = baseline_df)
+df$O2_drift <- predict(fit_gam, newdata = df)
+df$O2_corrected <- df$O2 - (df$O2_drift - 20.95)
+
+
+
+
+
+# Polynomial drift (e.g. quadratic)
+poly_order <- 3
+fit_poly <- lm(O2 ~ poly(Seconds, poly_order), data = df)
+df$signal_corrected <- df$O2 - predict(fit_poly)
+
+# GAM drift
+library(mgcv)
+fit_gam <- gam(O2 ~ s(Seconds, k = 10), data = df)
+df$signal_corrected <- df$O2 - predict(fit_gam)
+
+ggplot(df, aes(x = Seconds)) +
+  geom_line(aes(y = O2), color = "gray50") +
+  #geom_line(aes(y = predict(fit_gam)), color = "darkred", linetype = "dashed") +
+  geom_line(aes(y = predict(fit_poly)), color = "red", linetype = "dashed") +
+  #geom_line(aes(y = signal_corrected), color = "blue") +
+  theme_minimal()
+
+ggplot(df, aes(x = Seconds)) +
+  geom_line(aes(y = O2), color = "gray50") +
+  geom_line(aes(y = predict(fit_poly)), color = "red", linetype = "dashed") +
+  geom_line(aes(y = signal_corrected+20.95), color = "blue") +
+  theme_minimal() +
+  geom_hline(yintercept = 20.95, col = "red", linetype = "dashed")
 
 ###-###-###-###-###-###-###-###-###-###-
 #
