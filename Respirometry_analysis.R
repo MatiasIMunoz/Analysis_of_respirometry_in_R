@@ -1,4 +1,4 @@
-
+#test
 ###-###-###-###-###-###-###-###-###-###-
 #
 # 0) Script for the analysis of respirometry data.
@@ -50,7 +50,13 @@ df$Minutes <- df$Seconds/60
 # 2) Correct lag / cross-correlation ----
 #*
 #********************************
-lag_correct_channels(df)
+lags_ch <- lag_correct_channels(df)
+
+head(df)
+
+lags_ch$lags
+df$O2_lagcorr <- df$O2 + lags_ch[[1]]
+
 
 
 # Create df_2 with scaled variables
