@@ -64,17 +64,14 @@ nfrogs <- 5
 nreps <- 7
 
 marker_times <- df$Seconds[df$Marker != -1];length(marker_times)
-
-
 marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B");length(marker_names)
-
 #marker_names[length(marker_names)] <- "B"  # set last one to "B"
 names(marker_times) <- marker_names
 marker_times
 
 ggplot(df)+
-  geom_line(aes(x = Seconds, y = O2), color = alpha("grey50", 0.5)) +
-  geom_vline(xintercept = marker_times, col = "green")+
+  geom_vline(xintercept = marker_times, col = "grey50")+
+  geom_line(aes(x = Seconds, y = O2), color = "black") +
   my.theme
 
 #********************************
@@ -106,7 +103,8 @@ ggplot(df)+
   annotate(geom = "text",x = marker_times,y = 21.6,label = names(marker_times),vjust = -0,hjust = 0, size = 5,color = "grey80") +
   geom_line(aes(x = Seconds, y = O2), color = alpha("black", 0.5)) +
   geom_line(aes(x = Seconds + lags_ch[[1]], y = O2), color = alpha("red", 0.5)) +
-  lims(x = c(0, 2000))+
+  lims(x = c(xcorr_window[[1]], xcorr_window[[2]]))+
+  labs(x = "Time (s)", y = "O2")+
   theme_bw()
 
 
