@@ -11,7 +11,8 @@
 lag_correct_channels <- function(df,
                                  channels = c("O2", "CO2", "WVP"),
                                  ref = "FlowRate",
-                                 window = c(2511, 12579)) {
+                                 window = c(2511, 12579),
+                                 lag.max = 200) {
   
   # Create new dataframe
   df_lagcorr <- df
@@ -30,21 +31,24 @@ lag_correct_channels <- function(df,
   lags <- numeric(length(channels))
   names(lags) <- channels
   
-  # Set up 3-panel figure
-  par(mfrow = c(1, length(channels)))
-  
-  # Compute lag for each channel
-  for(ch in channels){
-    ccf_res <- ccf(x = as.numeric(xcorr_df[,"FlowRate"]), y = as.numeric(xcorr_df[,ch]), lag.max = 500, main = "")
-    max_lag_index <- which.max(abs(ccf_res$acf))
-    max_lag <- ccf_res$lag[max_lag_index];max_lag # find lag
-    abline(v = max_lag, col = "red")
-    lag_val <- ccf_res$lag[max_lag_index]
-    lags[ch] <- lag_val
-    title(paste0(ch," (lag = ", lag_val," seconds)") )
+  ccf_results <- list()
+ # plot_obj <- recordPlot({
     
-  }
-  print(lags)
+    par(mfrow = c(1, length(channels)))
+    for(ch in channels){
+      ccf_res <- ccf(x = as.numeric(xcorr_df[,"FlowRate"]), y = as.numeric(xcorr_df[,ch]), lag.max = lag.max, main = "")
+      max_lag_index <- which.max(abs(ccf_res$acf))
+      max_lag <- ccf_res$lag[max_lag_index];max_lag # find lag
+      abline(v = max_lag, col = "red")
+      lag_val <- ccf_res$lag[max_lag_index]
+      lags[ch] <- lag_val
+      title(paste0(ch," (lag = ", lag_val," seconds)") )
+      ccf_results[[ch]] <- ccf_res
+    }
+    
+  #})
+
+  list(lags = lags, ccf = ccf_results)
 
 }
 

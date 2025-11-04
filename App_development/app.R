@@ -10,7 +10,7 @@ source("/Users/matiasvumac/Documents/GitHub/Analysis_of_respirometry_in_R/Respir
 my_theme <-theme_bw()+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         plot.title = element_text(face="bold"), 
-        legend.position="none",
+        #legend.position="none",
         strip.background = element_rect(colour = "black", fill = "white"), 
         strip.text.x = element_text(colour = "black", face = "bold"),
         plot.tag = element_text(face = "bold"))
@@ -52,7 +52,7 @@ ui <- page_navbar(
                 tags$p(tags$b("Define some basic parameters:")),
                 numericInput("N.frogs", "Number of frogs:", value = 1, min = 1, max = 7, step = 1),
                 numericInput("N.reps", "Number of repetitions:", value = 1, min = 1, max = 20, step = 1),
-                actionButton("apply_params", "Apply parameters", icon = icon("check")), # add action button.
+                actionButton("apply_params", "Apply parameters", icon = icon("check"), style = "color: white; background-color: darkblue; border-color: darkblue;"),
                 tags$br(), tags$br(),
                 textOutput("param_status") 
               ),
@@ -71,8 +71,8 @@ ui <- page_navbar(
               tags$br(),
               div(style = "display: flex; justify-content: center; align-items: center;", tableOutput("contents")), # this simply centers the table
               tags$br(),
-              plotOutput("firstPlot", width = "100%"),
-              plotOutput("zoomPlot", width = "100%")
+              plotOutput("firstPlot", width = "85%"),
+              plotOutput("zoomPlot", width = "85%")
               )
               
             )
@@ -82,17 +82,49 @@ ui <- page_navbar(
   #********************************
   ### Tab 2. Lag correction ----
   #********************************
-  
-  nav_panel("2) Lag correction",
-            layout_sidebar(
-              sidebar = sidebar(
-                tags$p(tags$em(textOutput("param_summary"))),
-                actionButton("LagCorr", label = "Correct lag"),
-                textOutput("xcorr_window_text"),
-              ),
-              plotOutput("plotLag", width = "100%"),
-            )
-  )
+
+ nav_panel("2) Lag correction",
+           layout_sidebar(
+             sidebar = sidebar(
+               tags$p(tags$em(textOutput("param_summary"))),
+               numericInput("lag_max", "Maximum lag for cross-correlation:", value = 200, min = 50, max = 400, step = 1),
+               #sliderInput("lag_max", 
+                #           "Maximum lag for cross-correlation:", min = 50, max = 400, value = 200, step = 1),
+               actionButton("LagCorr", label = "Correct lag"),
+               textOutput("xcorr_window_text"),
+               textOutput("lags_text")
+             ),
+             
+             
+             layout_column_wrap(   
+               width = 1, 
+               tags$div(
+                 style = "background-color:#f8f9fa; border-left:4px solid #0056b3;
+                 padding:12px; margin-bottom:10px; border-radius:6px;",
+                 tags$h5("Instructions:"),
+                 tags$h4("After pressing the 'Correct lag' button, the app will:"),
+                 tags$p("1. Compute the window used for cross-correlation (by default, this is the 2nd round of repirometry)"),
+                 tags$p("2. Make a figure of this window for O2, CO2 and WVP. It will also add 'FlowRate', which is the reference channel (or pacemaker in the syntax of ExpeData). "),
+                 tags$p("3. Run the cross-correlation analysis (with 'FlowRate' as reference), and report the lag value at which the |cross-correlation coefficient| is maximum.")
+               ),
+               
+               # Scrollable content container
+             div(
+               style = "
+        overflow-y: auto;
+        max-height: 85vh;  /* adjust as desired, 85% of viewport height */
+        padding-right: 10px;",
+               
+               tags$h4("Visualize lag in each channel:"),
+               plotOutput("plotLag", width = "85%", height = "800px"),
+               tags$br(),
+               tags$h4("Visualize the results of the cross-correlation analysis:"),
+               plotOutput("ccfPlot", width = "85%", height = "250px")
+              )
+             )
+           )
+ )
+ 
   
 
 )
@@ -238,7 +270,7 @@ server <- function(input, output, session) {
   # Show calculated window values
   output$xcorr_window_text <- renderText({
     req(xcorr_window())
-    paste("Cross-correlation window (Seconds):", 
+    paste("Cross-correlation window (s):", 
           paste(round(xcorr_window(), 2), collapse = " - "))
   })
   
@@ -246,15 +278,20 @@ server <- function(input, output, session) {
   # Plot of cross-correlation window
   output$plotLag <- renderPlot({
     req(datafile())
+    req(xcorr_analysis())
     
     df <- datafile()
     
     pO2 <- ggplot(df, aes(x = Seconds, y = O2)) +
       annotate("rect", xmin =  xcorr_window()[[1]], xmax = xcorr_window()[[2]], ymin = -Inf, ymax = Inf,alpha = 0.05, fill = "red")+
       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-      geom_line(color = "black") +
+      #geom_line(color = "grey70") +
+      #geom_line(data = df, aes(x = Seconds + xcorr_analysis()$lags[["O2"]], y = O2), color = "black")+
+      geom_line(aes(y = CO2, color = "original"), linewidth = 1) +
+      geom_line(aes(x = Seconds + xcorr_analysis()$lags[["CO2"]], y = CO2, color = "corrected"), linewidth = 1) +
+      scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
       theme_minimal(base_size = 14) +
-      labs(title =  "O2 vs Time - Window section used for cross-correlation", x = "Seconds", y = "O2")+
+      labs(title =  "O2 vs Time - Section used for cross-correlation", x = "Seconds", y = "O2", color = "Legend")+
       my_theme+
       lims(x = xcorr_window())
       
@@ -262,18 +299,22 @@ server <- function(input, output, session) {
     pCO2 <- ggplot(df, aes(x = Seconds, y = CO2)) +
       annotate("rect", xmin =  xcorr_window()[[1]], xmax = xcorr_window()[[2]], ymin = -Inf, ymax = Inf,alpha = 0.05, fill = "red")+
       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-      geom_line(color = "black") +
+      geom_line(color = "grey70") +
+      geom_line(data = df, aes(x = Seconds + xcorr_analysis()$lags[["CO2"]], y = CO2), color = "black")+
       theme_minimal(base_size = 14) +
-      labs(title =  "CO2 vs Time - Window section used for cross-correlation", x = "Seconds", y = "CO2")+
+      labs(title =  "CO2 vs Time - Section used for cross-correlation", x = "Seconds", y = "CO2")+
       my_theme+
+      theme(legend.position = "right")+
+      guides(linetype = guide_legend(override.aes = list(size = 2)))+
       lims(x = xcorr_window())
     
     pWVP <- ggplot(df, aes(x = Seconds, y = WVP)) +
       annotate("rect", xmin =  xcorr_window()[[1]], xmax = xcorr_window()[[2]], ymin = -Inf, ymax = Inf,alpha = 0.05, fill = "red")+
       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-      geom_line(color = "black") +
+      geom_line(color = "grey70") +
+      geom_line(data = df, aes(x = Seconds + xcorr_analysis()$lags[["WVP"]], y = WVP), color = "black")+
       theme_minimal(base_size = 14) +
-      labs(title =  "WVP vs Time - Window section used for cross-correlation", x = "Seconds", y = "WVP")+
+      labs(title =  "WVP vs Time - Section used for cross-correlation", x = "Seconds", y = "WVP")+
       my_theme+
       lims(x = xcorr_window())
     
@@ -282,20 +323,48 @@ server <- function(input, output, session) {
       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkblue", linetype = "solid", alpha = 0.4)+
       geom_line(color = "black") +
       theme_minimal(base_size = 14) +
-      labs(title =  "FlowRate vs Time - REFERENCE - Window section used for cross-correlation", x = "Seconds", y = "FlowRate")+
+      labs(title =  "FlowRate vs Time - REFERENCE - Section used for cross-correlation", x = "Seconds", y = "FlowRate")+
       my_theme+
       lims(x = xcorr_window())
     
     gridExtra::grid.arrange(pO2, pCO2, pWVP, pFlowRate, ncol = 1)
   },  height = 750)
   
+  
   # Run cross-correlation analysis
   xcorr_analysis <- eventReactive(input$LagCorr,{
     req(datafile())
-    
+    req(xcorr_window())
+    req(input$lag_max)
+
     df <- datafile()
     
-   lags_ch <- lag_correct_channels(df) 
+   lags_ch <- lag_correct_channels(df,
+                                   window = xcorr_window(),
+                                   lag.max = input$lag_max) 
+  })
+  
+  
+  # Print calculated lags.
+  output$lags_text <- renderText({
+    req(xcorr_analysis())
+    
+    paste("Estimated lags:", 
+          paste(xcorr_analysis()$lags, collapse = " s, "))
+  })
+
+  # Plot cross-correlation results
+  output$ccfPlot <- renderPlot({
+    req(xcorr_analysis())
+    res <- xcorr_analysis()
+    par(mfrow = c(1, length(res$ccf)))
+    
+    for (ch in names(res$ccf)) {
+      ccf_res <- res$ccf[[ch]]
+      plot(ccf_res, main = "")
+      abline(v = res$lags[ch], col = "red")
+      title(paste0(ch, " (lag = ", res$lags[ch], " s)"))
+    }
   })
   
   
