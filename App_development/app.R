@@ -1,18 +1,31 @@
+
+# Shiny app for the analysis of stop-flow respirometry recordings.
+# By Matías I. Muñoz
+
+# Load packages and install them if missing
+packages <- c("shiny", "bslib", "ggplot2", "DT", "cowplot", "dplyr", "tidyr", "viridis", "pracma")
+
+if (!requireNamespace(packages, quietly = TRUE)) {
+  install.packages(packages, dependencies = TRUE)
+}
+
 library(shiny)
 library(bslib)
 library(ggplot2)
-library(DT) # for nice tables
+library(DT)
 library(cowplot)
 library(dplyr)
 library(tidyr)
+library(viridis)
+library(pracma)
 
+# Load script with custom functions. NECESSARY!
 source("/Users/matiasvumac/Documents/GitHub/Analysis_of_respirometry_in_R/Respirometry_functions.R")
 
 # Define a ggplot theme
 my_theme <-theme_bw()+ 
   theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
         plot.title = element_text(face="bold"), 
-        #legend.position="none",
         strip.background = element_rect(colour = "black", fill = "white"), 
         strip.text.x = element_text(colour = "black", face = "bold"),
         plot.tag = element_text(face = "bold"))
@@ -64,16 +77,22 @@ ui <- page_navbar(
               layout_column_wrap(
                 width = 1, 
                 tags$div(
-                  style = "background-color:#f8f9fa; border-left:4px solid #0056b3;
-                 padding:12px; margin-bottom:10px; border-radius:6px;",
-                  tags$h5("Instructions:"),
+                  style = "background-color:#f8f9fa; border-left:4px solid #0056b3;padding:12px; margin-bottom:10px; border-radius:6px;",
+                  
+                  
+                tags$h5("Instructions:"),
                 tags$p("1. Upload your CSV file exported from ExpeData."),
                 tags$p("2. Choose which channel to visualize."),
-                tags$p("3. Introduce the number of frogs and repetitions, then click 'Apply parameters'.")
+                tags$p("3. Introduce the number of frogs and repetitions, then click 'Apply parameters'."),
+                tags$hr(),
                 ),
                 
               tags$br(),
-              div(style = "display: flex; justify-content: center; align-items: center;", tableOutput("contents")), # this simply centers the table
+              
+              div(
+                style = "display: flex; justify-content: center; align-items: center;",
+                  
+              tableOutput("contents")), # this simply centers the table
               tags$br(),
               plotOutput("firstPlot", width = "85%"),
               plotOutput("zoomPlot", width = "85%")
@@ -114,15 +133,9 @@ ui <- page_navbar(
                  style = "background-color:#f8f9fa; border-left:4px solid #0056b3; padding:12px; margin-bottom:5px; border-radius:6px; width:100%; max-height:250px; overflow-y:auto;",
                  
                  tags$h5("Instructions:"),
-                 tags$p("1) Check that the number of frogs and repetitions introduced in the previous tab are correct (the 'Recording details' table). THIS IS IMPORTAT FOR THE REST OF THE ANALYSES."),
-                 tags$p("2) Modify the maximum lag values for the cross-correlation analysis. A max. lag of 200 works generally well, but in some cases it may have to be increased. Check the figures at the bottom of the page to evaluate your choice."),
+                 tags$p("1) Check that the number of frogs and repetitions introduced in the previous tab are correct (the 'Recording details' table)."),
+                 tags$p("2) Modify the maximum lag values for the cross-correlation analysis. A max. lag of 200 (s) works generally well, but in some cases it may have to be increased. Check the figures at the bottom of the page to evaluate your choice."),
                  tags$hr(),
-                 tags$h6("After pressing the 'Correct lag' button, the app will:"),
-                 tags$p("a. Compute the window used for cross-correlation. We don't want to cross-correlate across the whole recording, so by default the app chooses the second repetition of the repirometry experiment)."),
-                 tags$p("b. Run the cross-correlation analysis. By default the app uses  'FlowRate' as reference channel (also called the 'pacemaker' channel in ExpeData), and record the lag value at which the |cross-correlation coefficient| is maximum."),
-                 tags$p("c. Create a figure showing the original and corrected traces for O2, CO2, WVP."),
-                 tags$p("d. Create a figure showing the result of the cross-correlation analysis."),
-                 
                ),
                
 
@@ -130,12 +143,12 @@ ui <- page_navbar(
                style = "overflow-y:auto; max-height:75vh; padding-right:10px; width:100%;",
                
                tags$h4("Lag in each channel:"),
-               plotOutput("plotLag", width = "90%", height = "800px"),
+               plotOutput("plotLag", width = "95%", height = "800px"),
                
                tags$hr(),
                
                tags$h4("Results of the cross-correlation analysis:"),
-               plotOutput("ccfPlot", width = "90%", height = "250px"),
+               plotOutput("ccfPlot", width = "95%", height = "250px"),
                
                tags$hr(),
                
@@ -171,30 +184,39 @@ ui <- page_navbar(
                
                tags$div(
                  style = "background-color:#f8f9fa; border-left:4px solid #0056b3; padding:12px; margin-bottom:5px; border-radius:5px; width:100%; max-height:250px; overflow-y:auto;",
+
+                 
                  tags$h5("Instructions:"),
                  tags$p("1) Choose a percentage of the baseline window to compute the average O2 and CO2. The average gas concentration and midpoint of the baseline will be used to fit the spline required to correct drift."),
                  tags$p("2) Click the 'Correct drift' button. This will fit a Forsythe, Malcolm and Moler spline, and substract the predicted values for O2 and CO2 from the lag-corrected values."),
+                 tags$hr(),
+                 
                ),
                
                div(
+                 #style = "padding-right:10px; width:100%;",
+                 style = "overflow-y:auto; max-height:75vh; padding-right:10px; width:100%;",
+                 
                  tags$p(tags$b("Baseline sections:")),
                  tableOutput("baseline_table"),
-                 
+                 tags$br(),
+    
                  tags$hr(),
                  
-                 tags$p(tags$b("Points for spline fitting and spline:")),
+                 tags$p(tags$b("Forsythe, Malcolm and Moler spline:")),
                  plotOutput("baseline_plot", width = "95%", height = "400px"),
+                 tags$br(),
                  
                  tags$hr(),
                  
                  tags$p(tags$b("Drift corrected O2 and CO2:")),
-                 plotOutput("drift_corrected_plot", width = "95%", height = "250px"),
+                 plotOutput("drift_corrected_plot", width = "95%", height = "400px"),
+                 tags$br(),
                  
-                 #tags$hr(),
+                 tags$hr(),
                  
-                 #tags$h4("Lag and drift corrected data frame:"),
-                 #DTOutput("LagDriftCorrTable")
-                 
+                 tags$h4("Lag and drift corrected data frame:"),
+                 DTOutput("LagDriftCorrTable")
                )
                
                
@@ -205,20 +227,79 @@ ui <- page_navbar(
          ),
  
  
+ #********************************
+ ###  Tab 4. Inspect your data ----
+ #********************************
+nav_panel("4) Check your data",
+          layout_sidebar(
+            sidebar = sidebar(
+              
+               sliderInput("x_zoom_tab4", "Zoom in:", min = 0, max = 10, value = c(0, 5)),
+               tags$hr(),
+               downloadButton("download_drift", "Download corrected data (CSV)"),
+               downloadButton("download_markers", "Download markers data (CSV)")
+            ),
+            
+            
+            layout_column_wrap(
+              width = 1,
+              
+              tags$div(
+                 style = "background-color:#f8f9fa; border-left:4px solid #0056b3; padding:12px; margin-bottom:0px; border-radius:5px; width:100%;",
 
- 
- #********************************
- #
- ###  Tab 4. Check your data ----
- #
- #********************************
- nav_panel("4) Check your data"),
- 
+                
+                tags$h5("Instructions:"),
+                tags$p("1) Check that data looks alright (e.g., did lag and drift correction worked? all individuals are correctly selected?"),
+                #tags$hr(),
+                
+              ),
+              
+              div(
+                #style = "margin-top:0px; padding-top:0px;",
+                style = "overflow-y:auto; max-height:75vh; padding-right:10px; width:100%;",
+                #style = "margin-top:0 !important; padding-top:0 !important; overflow-y:auto; max-height:75vh; padding-right:10px; width:100%;",
+                
+                tags$p(tags$b("Check your data before analysing:")),
+                plotOutput("plotPreAnalysis",  width = "95%", height = "850px"),
+              )
+            )
+            
+            
+          )),
 
  #********************************
  ###  Tab 5. Analysis ----
  #********************************
- nav_panel("5) Analysis")
+ nav_panel("5) Analysis",
+           layout_sidebar(
+             sidebar = sidebar(
+               
+               actionButton("Analyse", label = "Analyse!",  style = "color: white; background-color: darkblue; border-color: darkblue;")
+             
+               ),
+             layout_column_wrap(
+               width = 1,
+               
+               tags$div(
+                 style = "background-color:#f8f9fa; border-left:4px solid #0056b3; padding:12px; margin-bottom:5px; border-radius:5px; width:100%; max-height:250px; overflow-y:auto;",
+                 tags$h5("Instructions:"),
+                 tags$p("1) blablabla."),
+                 tags$hr(),
+                 #tags$p("2) Click the 'Correct drift' button. This will fit a Forsythe, Malcolm and Moler spline, and substract the predicted values for O2 and CO2 from the lag-corrected values."),
+               ),
+               
+               div(
+                 tags$p(tags$b("Markers:")),
+                 tableOutput("markers_table"),
+                 tableOutput("results")
+                 
+                 
+                 
+               )
+               
+             )
+           )
+           )
  
  
 
@@ -255,11 +336,21 @@ server <- function(input, output, session) {
       df$Marker[1] <- 50
     }
     
+    # Attach filename as an attribute
+   # attr(df, "filename") <- input$file1$name
+    
     df
   })
   
-  
-  
+  #______________________________________________________________________
+  ## 1.X) Extract filename ----
+  #______________________________________________________________________
+   #Reactive for filename
+  filename <- reactive({
+    req(input$file1)
+    
+    input$file1$name
+  })
   
   #______________________________________________________________________
   ## 1.2) Update Y variable selector and slider range after file is loaded ----
@@ -317,6 +408,7 @@ server <- function(input, output, session) {
   })
 
   
+
   
   #______________________________________________________________________
   ## 1.6) Plots (full and zoomed) ----
@@ -469,7 +561,7 @@ server <- function(input, output, session) {
     
     cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, ncol = 1, align = "hv")
     
-  },  height = 750)
+  },  height = 799)
   
   
  
@@ -528,7 +620,7 @@ server <- function(input, output, session) {
       abline(v = res$lags[ch], col = "red")
       title(paste0(ch, " (lag = ", res$lags[ch], " s)"))
     }
-  })
+  }, height = 249)
   
   
   
@@ -558,6 +650,20 @@ server <- function(input, output, session) {
   
 
   
+  #______________________________________________________________________
+  ## 1.X) Min. and Max. seconds lag-corrected ----
+  #______________________________________________________________________
+  min_max_seconds <- reactive({
+    req(df_lag())
+    
+    marker_times <- df_lag()$Seconds[df_lag()$Marker != -1] # extract markers.
+    
+    min_seconds <- min(marker_times) # minimum seconds with markers.
+    max_seconds <- max(marker_times) # maximum seconds with markers.
+    
+    #min_max_seconds_df <- cbind.data.frame(Min = min_seconds, Max = max_seconds)
+   return(list(min_seconds = min_seconds, max_seconds = max_seconds))
+  })
   
   
   #______________________________________________________________________
@@ -601,7 +707,7 @@ server <- function(input, output, session) {
   #})
   
   #______________________________________________________________________
-  ## 3.2) Calculate table for drift correction (baseline midpoints and mean O2) ----
+  ## 3.2) Calculate table for drift correction (baseline midpoints and mean O2 and CO2) ----
   #______________________________________________________________________
   drift_table <- eventReactive(input$DriftCorr, {
     req(datafile())
@@ -617,7 +723,7 @@ server <- function(input, output, session) {
     baseline_prop <- input$PercentBaseline
     
     
-    marker_times <- df$Seconds[df$Marker != -1]
+    marker_times <- df_lag$Seconds[df_lag$Marker != -1]
     marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B")
     names(marker_times) <- marker_names
     marker_times
@@ -634,7 +740,7 @@ server <- function(input, output, session) {
     Bs_2s_df_wide$Upper.prop <- round(Bs_2s_df_wide[,3] - (Bs_2s_df_wide[,3] - Bs_2s_df_wide[,2])*((1-baseline_prop)/2))
     
     
-    # Compute mean O2 for each repetition
+    # Compute mean O2 and CO2 for each repetition
     mean_O2_df <- Bs_2s_df_wide %>%
       rowwise() %>%
       mutate(mean_O2 = mean(df_lag$O2[df_lag$Seconds >= Lower.prop & df_lag$Seconds <= Upper.prop], na.rm = TRUE),
@@ -645,7 +751,7 @@ server <- function(input, output, session) {
     # turn table into data frame
     mean_O2_df <- as.data.frame(mean_O2_df)
     
-    (mean_O2_df)
+   # (mean_O2_df)
     
   })
   
@@ -677,16 +783,16 @@ server <- function(input, output, session) {
     O2_spline_function <- splinefun(drift_table()$Midpoint, drift_table()$mean_O2, method = "fmm")
     CO2_spline_function <- splinefun(drift_table()$Midpoint, drift_table()$mean_CO2, method = "fmm")
     
-    # Predict baseline for all times
+    # Predict baseline for all seconds
      O2_predict <- O2_spline_function(df_lag()$Seconds)
     CO2_predict <- CO2_spline_function(df_lag()$Seconds)
     
     # Create drift data frame
     df_drift <- df_lag()
     
-    # Add lag and dri
+    # Add lag and drift
     df_drift$O2_driftlagcorrected <- df_drift$O2_lagcorrected - O2_predict
-    df_drift$CO2_driftlagcorrected <- df_drift$CO2_lagcorrected - CO2_predict
+    df_drift$CO2_driftlagcorrected <-df_drift$CO2_lagcorrected - CO2_predict
     
     # Return a data frame with spline predictions as list.
     list(
@@ -723,7 +829,7 @@ server <- function(input, output, session) {
     ggplot(df_lag, aes(x = Seconds))+
       geom_rect(data = drift_table(), aes(xmin = Begin, xmax = End, ymax = Inf, ymin = -Inf), inherit.aes = FALSE, fill = "grey70", alpha = 0.2)+
       geom_rect(data = drift_table(), aes(xmin = Lower.prop, xmax = Upper.prop, ymax = Inf, ymin = -Inf), inherit.aes = FALSE, fill = "red", alpha = 0.2)+
-      geom_line(aes(y = O2_lagcorrected), col = "grey50")+
+      geom_line(aes(y = O2_lagcorrected), col = "black")+
       geom_point(data = drift_table(), aes(x = Midpoint, y = mean_O2), col = "red", size = 2)+
       geom_line(data = spline_df$baseline_df, aes(x = Seconds, y = Baseline_O2), col = "red")+
       labs(title = "Drift uncorrected O2")+
@@ -738,7 +844,7 @@ server <- function(input, output, session) {
       ggplot(df_lag, aes(x = Seconds))+
       geom_rect(data = drift_table(), aes(xmin = Begin, xmax = End, ymax = Inf, ymin = -Inf), inherit.aes = FALSE, fill = "grey70", alpha = 0.2)+
       geom_rect(data = drift_table(), aes(xmin = Lower.prop, xmax = Upper.prop, ymax = Inf, ymin = -Inf), inherit.aes = FALSE, fill = "red", alpha = 0.2)+
-      geom_line(aes(y = CO2_lagcorrected), col = "grey50")+
+      geom_line(aes(y = CO2_lagcorrected), col = "black")+
       geom_point(data = drift_table(), aes(x = Midpoint, y = mean_CO2), col = "red", size = 2)+
       geom_line(data = spline_df$baseline_df, aes(x = Seconds, y = Baseline_CO2), col = "red")+
       labs(title = "Drift uncorrected CO2")+
@@ -750,24 +856,36 @@ server <- function(input, output, session) {
     
     gridExtra::grid.arrange(p0, p1, ncol = 1)
     
-  }, height = 400)
+  }, height = 399)
   
   
   #______________________________________________________________________
   ## 3.6) Create drift-corrected data frame for O2 and CO2 ----
   #______________________________________________________________________
-  df_drift <- reactive({
+  dataframe_drift <- reactive({
     req(df_lag())
     req(ffm_spline())
+    req(drift_table())
+    req(min_max_seconds())
 
     drift_df <- df_lag()
     spline_df <- ffm_spline()
     
-    # Correct O2 and span to 20.95%
-    drift_df$O2_lagdriftcorrected <- drift_df$O2_lagcorrected - (spline_df$baseline_df$Baseline_O2 - 20.95)
-    # Correct CO2 and span to 0
+
+    # Correct O2.
+    drift_df$O2_lagdriftcorrected <- drift_df$O2_lagcorrected - (spline_df$baseline_df$Baseline_O2)
+    
+    # Correct CO2.
     drift_df$CO2_lagdriftcorrected <- drift_df$CO2_lagcorrected - (spline_df$baseline_df$Baseline_CO2)
     
+    # Subset df between markers.
+    drift_df <- drift_df[c((min_max_seconds()$min_seconds):(min_max_seconds()$max_seconds)), ]
+ 
+    
+    # Span O2 and CO2 to 0 (zero).
+    drift_df$O2_lagdriftcorrected  <- drift_df$O2_lagdriftcorrected  - abs(max(drift_df$O2_lagdriftcorrected, na.rm = TRUE)) # remove maximum to avoid positive values
+    drift_df$CO2_lagdriftcorrected  <- drift_df$CO2_lagdriftcorrected + abs(min(drift_df$CO2_lagdriftcorrected, na.rm = TRUE)) # add minimum to avoid negative values
+
     return(drift_df)
   })
   
@@ -776,24 +894,24 @@ server <- function(input, output, session) {
   
   #______________________________________________________________________
   ## 3.7) Head of drift-corrected data frame for O2 and CO2 ----
-  #______________________________________________________________________
+  #_________________________________________________________ _____________
   
-#  output$LagDriftCorrTable <- renderDT({
- #   req(df_drift())
+  output$LagDriftCorrTable <- renderDT({
+    req(dataframe_drift())
     
-  #  datatable(
-   #   head(df_drift(), 25),
-    #  options = list(
-     #   scrollX = TRUE,        
-      #  scrollY = "400px",     
-       # scrollCollapse = TRUE,
-      #  paging = FALSE,        
-       # searching = FALSE,     
-        #info = FALSE         
-      #),
-      #rownames = FALSE
-    #)
-  #})
+    datatable(
+      head(dataframe_drift(), 6),
+      options = list(
+        scrollX = TRUE,        
+        scrollY = "400px",     
+        scrollCollapse = TRUE,
+        paging = FALSE,        
+        searching = FALSE,     
+        info = FALSE         
+      ),
+      rownames = FALSE
+    )
+  })
   
   
   #______________________________________________________________________
@@ -801,24 +919,24 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   
 output$drift_corrected_plot <- renderPlot({
-  req(drift_table)
-  req(df_drift())
+  req(drift_table())
+  req(dataframe_drift())
   
-  p0 <- ggplot(df_drift(), aes(x = Seconds))+
+  p0 <- ggplot(dataframe_drift(), aes(x = Seconds))+
     geom_rect(data = drift_table(), aes(xmin = Begin, xmax = End, ymax = Inf, ymin = -Inf), inherit.aes = FALSE, fill = "grey70", alpha = 0.2)+
-    geom_line(aes(y = O2_lagdriftcorrected), col = "grey50")+
-    geom_hline(yintercept = 20.95, col = "red", linetype = "dashed")+
-    lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    geom_line(aes(y = O2_lagdriftcorrected), col = "black")+
+    geom_hline(yintercept = 0, col = "red", linetype = "dashed")+
+    #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
     theme_bw()+
     theme(panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank())
   p0
   
-  p1 <- ggplot(df_drift(), aes(x = Seconds))+
+  p1 <- ggplot(dataframe_drift(), aes(x = Seconds))+
     geom_rect(data = drift_table(), aes(xmin = Begin, xmax = End, ymax = Inf, ymin = -Inf), inherit.aes = FALSE, fill = "grey70", alpha = 0.2)+
-    geom_line(aes(y = CO2_lagdriftcorrected), col = "grey50")+
+    geom_line(aes(y = CO2_lagdriftcorrected), col = "black")+
     geom_hline(yintercept = 0, col = "red", linetype = "dashed")+
-    lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
     theme_bw()+
     theme(panel.grid.major = element_blank(), 
           panel.grid.minor = element_blank())
@@ -826,8 +944,268 @@ output$drift_corrected_plot <- renderPlot({
   
   gridExtra::grid.arrange(p0, p1, ncol = 1)
   
-}, height = 400)
+}, height = 399)
   
+#********************************
+#
+# Tab 4. Check your data ----
+#
+#********************************
+
+#______________________________________________________________________
+## 4.0) Update plot x-axis zoom ----
+#______________________________________________________________________
+
+#observeEvent(df_drift() {
+
+  # Update zoom slider range
+ # updateSliderInput(session, "x_zoom_tab4",
+  #                  min = min(df_drift()$Seconds),
+   #                 max = max(df_drift()$Seconds),
+    #                value = c(min(df_drift()$Seconds), 
+     #                         max(df_drift()$Seconds)/2))
+#})
+
+
+
+#______________________________________________________________________
+## 4.1) Markers table ----
+#______________________________________________________________________
+
+markers_df <- reactive({
+  req(dataframe_drift())
+  req(params())
+  req(datafile())
+  
+  df_analysis <- dataframe_drift()
+  nfrogs <- params()$N.frogs
+  nreps <- params()$N.reps
+  
+  marker_times <- datafile()$Seconds[datafile()$Marker != -1];length(marker_times)
+  marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B");length(marker_names)
+  #marker_names[length(marker_names)] <- "B"  # set last one to "B"
+  names(marker_times) <- marker_names
+  marker_times
+  
+  # Extract marker names and times
+  Marker      <- names(marker_times)
+  Begin_time  <- marker_times
+  End_time    <- c(marker_times[-1], NA)        # shift left for end times
+  Begin_time  <- Begin_time + c(0, rep(1, length(marker_times)-1))  # add +1 except first
+  
+  # Build data frame
+  markers_df <- data.frame(
+    Marker = Marker,
+    Begin_time = Begin_time,
+    End_time = End_time
+  )
+  
+  # Remove last row (no end time)
+  markers_df <- markers_df[-nrow(markers_df), ]
+  
+  markers_df$Repetition <- c(rep(0:nreps, rep_len(c(nfrogs+1), nreps+1)), NA)
+  
+  return(markers_df)
+  
+})
+
+#______________________________________________________________________
+## 4.X) Update slider range after file is loaded ----
+#______________________________________________________________________
+observeEvent(datafile(), {
+  df <- datafile()
+  #cols <- setdiff(names(df), "Seconds")  # exclude x-axis
+
+  # Update zoom slider range
+  updateSliderInput(session, "x_zoom_tab4",
+                    min = min(df$Seconds),
+                    max = max(df$Seconds),
+                    value = c(min(df$Seconds), 
+                              max(df$Seconds)/5))
+})
+
+
+#______________________________________________________________________
+## 4.XX) Dowload corrected data and markers  ----
+#______________________________________________________________________
+  output$download_drift <- downloadHandler(
+    filename = function() {
+      req(filename())
+      
+      # Remove .csv extension from original filename
+      base <- sub("\\.csv$", "", filename())
+      
+      paste0(base, "_corrected.csv")
+    },
+    content = function(file) {
+      req(dataframe_drift())
+      write.csv(dataframe_drift(), file, row.names = FALSE)
+    }
+  )
+  
+  
+  output$download_markers <- downloadHandler(
+    filename = function() {
+      req(filename())
+      
+      # Remove .csv extension from original filename
+      base <- sub("\\.csv$", "", filename())
+      
+      paste0(base, "_markers.csv")
+    },
+    content = function(file) {
+      req(markers_df())
+      write.csv(markers_df(), file, row.names = FALSE)
+    }
+  )
+  
+#______________________________________________________________________
+## 4.2) Plot data to analyze ----
+#______________________________________________________________________
+
+output$plotPreAnalysis <- renderPlot({
+  req(drift_table())
+  req(dataframe_drift())
+  req(markers_df())
+  req(params())
+  
+  
+  # Define colors for different channels
+  cols <- viridis(params()$N.frogs, option = "turbo")
+  cols <- c("grey70", cols) # add grey baseline.
+  cols <- setNames(cols, unique(markers_df()$Marker)) #set names for each color.
+  
+   
+  # Plots
+  pO2 <- ggplot(dataframe_drift(), aes(x = Seconds))+
+    geom_rect(data = markers_df(), 
+              aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+              inherit.aes = FALSE,
+              alpha = 0.2) +
+    scale_fill_manual(values = cols) +
+    geom_hline(yintercept = 0, col = "grey70", linetype = "dashed")+
+    geom_line(aes(y = O2_lagdriftcorrected), col = "black")+
+    #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    coord_cartesian(xlim = input$x_zoom_tab4)+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())
+  
+  
+  pCO2 <- ggplot(dataframe_drift(), aes(x = Seconds))+
+    geom_rect(data = markers_df(), 
+              aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+              inherit.aes = FALSE,
+              alpha = 0.2) +
+    scale_fill_manual(values = cols) +
+    geom_hline(yintercept = 0, col = "grey70", linetype = "dashed")+
+    geom_line(aes(y = CO2_lagdriftcorrected), col = "black")+
+   # lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    coord_cartesian(xlim = input$x_zoom_tab4)+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())
+  
+  
+  pWVP <- ggplot(dataframe_drift(), aes(x = Seconds))+
+    geom_rect(data = markers_df(), 
+              aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+              inherit.aes = FALSE,
+              alpha = 0.2) +
+    scale_fill_manual(values = cols) +
+    geom_line(aes(y = WVP_lagcorrected), col = "black")+
+    #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    coord_cartesian(xlim = input$x_zoom_tab4)+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())
+  
+  pFlowRate <- ggplot(dataframe_drift(), aes(x = Seconds))+
+    geom_rect(data = markers_df(), 
+              aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+              inherit.aes = FALSE,
+              alpha = 0.2) +
+    scale_fill_manual(values = cols) +
+    geom_line(aes(y = FlowRate), col = "black")+
+   # lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    coord_cartesian(xlim = input$x_zoom_tab4)+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())
+  
+  
+  pBP <- ggplot(dataframe_drift(), aes(x = Seconds))+
+    geom_rect(data = markers_df(), 
+              aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+              inherit.aes = FALSE,
+              alpha = 0.2) +
+    scale_fill_manual(values = cols) +
+    geom_line(aes(y = BP), col = "black")+
+    #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+    coord_cartesian(xlim = input$x_zoom_tab4)+
+    theme_bw()+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank())
+  
+  # Combine plots
+  cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, pBP, ncol = 1, align = "hv")
+  
+})
+
+
+
+
+
+
+
+#********************************
+#
+# Tab 5. Analysis ----
+#
+#********************************
+
+#______________________________________________________________________
+## 5.2) Print markers ----
+#______________________________________________________________________
+#output$markers_table <- renderTable({
+ # req(markers_df())
+  
+  #print(markers_df())
+  
+#})
+
+
+#______________________________________________________________________
+## 5.3) Official analysis ----
+#______________________________________________________________________
+resp_analysis <- eventReactive(input$Analyse, {
+  req(dataframe_drift()) # lag- and drift-corrected data frame.
+  req(markers_df()) # markers data frame to know where to integrate.
+  req(filename())
+  
+  
+  analysis <- stop_flow_analysis(
+    
+    df = dataframe_drift(),
+    markers_df = markers_df(),
+    filename = filename()
+    
+    )
+  
+  })
+
+#______________________________________________________________________
+## 5.3) Results table ----
+#______________________________________________________________________
+output$results <- renderTable({
+  req(resp_analysis())
+  
+  print(resp_analysis())
+  
+})
+
+
+
 }
 
 shinyApp(ui, server)

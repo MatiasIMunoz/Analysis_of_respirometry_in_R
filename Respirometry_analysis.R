@@ -36,11 +36,11 @@ my.theme <-theme_bw()+
 folder <- "/data/"
 
 # Name of the file.
-#filename_test <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
+#filename <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
 #str(filename_test)
-filename <- "Data_06-24-2025_001_DAY.txt"
+#filename <- "Data_06-24-2025_001_DAY.txt"
 #filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
-#filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
+filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
 #filename <- "Data_06-27-2025_001_DAY_LagDrift.txt" #n_frogs = 7, n_reps = 4
 #filename <- "Data_06-26-2025_001_DAY_SETUP1_LagDrift.txt" #n_frogs = 7, n_reps = 4
 #filename <- "Data_06-27-2025_001_NoPlaybackRMR_LagDrift.txt" #n_frogs = 5, n_reps = 3
@@ -68,6 +68,57 @@ marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B");le
 #marker_names[length(marker_names)] <- "B"  # set last one to "B"
 names(marker_times) <- marker_names
 marker_times
+
+
+# chatgpt markers ----
+mt <- marker_times   # your named vector
+
+# Extract marker names and times
+Marker      <- names(mt)
+Begin_time  <- mt
+End_time    <- c(mt[-1], NA)        # shift left for end times
+Begin_time  <- Begin_time + c(0, rep(1, length(mt)-1))  # add +1 except first
+
+# Build data frame
+markers_df <- data.frame(
+  Marker = Marker,
+  Begin_time = Begin_time,
+  End_time = End_time
+)
+
+rep(c(1:nfrogs), nreps)
+# Remove last row (no end time)
+markers_df <- markers_df[-nrow(markers_df), ]
+
+markers_df
+
+nrow(markers_df)
+
+reps_vector <- c(rep(0:nreps, rep_len(c(nfrogs+1), nreps+1)), NA)
+reps_vector
+
+markers_df <- cbind.data.frame(markers_df, Repetition = reps_vector)
+
+markers_df
+
+unique(markers_df$Marker)
+
+cols
+cols <- setNames(cols, unique(markers_df$Marker))
+
+length(marker_times)
+
+
+ggplot(df)+
+  #geom_vline(xintercept = marker_times, col = "grey50")+
+  geom_line(aes(x = Seconds, y = O2), color = "black") +
+  geom_rect(data = markers_df, 
+            aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+            alpha = 0.2) +
+  scale_fill_manual(values = c("B" = "red", "2" = "blue", "3" = "green", 
+                               "4" = "purple", "5" = "orange", "6" = "yellow")) +
+  my.theme
+
 
 ggplot(df)+
   geom_vline(xintercept = marker_times, col = "grey50")+
@@ -279,14 +330,25 @@ ggplot(df, aes(x = Seconds)) +
 # THIS IS IMPORTANT ----
 #
 ###-###-###-###-###-###-###-###-###-###-
-n_frogs <-  7 # number of frogs in the respirometer
-n_reps <- 4 # number of repetitions EXCLUDING first round
+n_frogs <-  5 # number of frogs in the respirometer
+n_reps <- 6 # number of repetitions EXCLUDING first round
 sampling_window_s <- 600 # length of sampling window, in samples (= seconds)
 first_marker_s <- ((120*(n_frogs+1)) + (sampling_window_s*(n_frogs+2))) # calculate the sample of the first marker of interest (in samples = seconds)
 enclosure_mins <- n_frogs*10 # Ten minutes per channel
 
 # Color palette
 cols <- viridis::turbo(n_frogs)
+
+###-###-###-###-###-###-###-###-###-###-
+# Markers for respirometry analysis ----
+###-###-###-###-###-###-###-###-###-###-
+
+marker_times <- df$Seconds[df$Marker != -1]
+marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B")
+names(marker_times) <- marker_names
+marker_times
+
+
 
 ###-###-###-###-###-###-###-###-###-###-
 #
@@ -443,14 +505,24 @@ ggplot(df, aes(x = Seconds, y = VolO2))+
 peaks_plot
 
 # Save plot.
-ggsave(filename = paste0(getwd(),"/figures/",filename, "_peaks_plot.png"), 
-       peaks_plot, width = 15, height = 5)
+#ggsave(filename = paste0(getwd(),"/figures/",filename, "_peaks_plot.png"), 
+ #      peaks_plot, width = 15, height = 5)
 
 ###-###-###-###-###-###-###-###-###-###-
 #
 # 6) Integrate VolO2, VolCO2, and mean CO2 ----
 #
 ###-###-###-###-###-###-###-###-###-###-
+markers_df
+
+subset(markers_df, Marker != "B" & Repetition != 0 & Repetition != 1)
+
+
+
+subset(markers_df, Marker == "3" & Repetition != 0 & Repetition != 1)
+subset(markers_df, Marker == "4" & Repetition != 0 & Repetition != 1)
+subset(markers_df, Marker == "5" & Repetition != 0 & Repetition != 1)
+subset(markers_df, Marker == "6" & Repetition != 0 & Repetition != 1)
 
 # Create an empty results data frame
 results <- data.frame(
@@ -465,12 +537,14 @@ results <- data.frame(
   stringsAsFactors = FALSE
 )
 
+ch=2
 # Loop through channels 2 to (n_frogs+1)
 for (ch in 2:(n_frogs+1)) {
   
   # Construct the variable name, e.g., "peaks_Ch2"
   peaks_var <- get(paste0("peaks_Ch", ch))
   
+  i=1
   # Loop through each peak (i) in the current channel (ch)
   for (i in seq_along(peaks_var)) {
     

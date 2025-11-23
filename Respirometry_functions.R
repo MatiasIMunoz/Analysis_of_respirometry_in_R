@@ -1,5 +1,6 @@
 # Functions for respirometry analysis
 
+library(pracma)
 
 #*************************************
 #*
@@ -51,6 +52,8 @@ lag_correct_channels <- function(df,
 }
 
 
+
+
 #*************************************
 #*
 #  2) Find midpoint between B and 2 markers ----
@@ -63,29 +66,121 @@ mid_B_to_2 <- function(x) {
   round((x[i] + x[i + 1]) / 2)
 }
 
-#*************************************
-#*
-#  3) USELESS Drift correction ----
-#*
-#*************************************
 
 
-correct_O2_drift <- function(df, time_col = "Seconds", O2_col = "O2", 
-                             marker_col = "Marker", baseline_marker = 50, 
-                             O2_ref = 20.95) {
-  # Identify baseline points
-  baseline_idx <- df[[marker_col]] == baseline_marker
-  Seconds_baseline <- df[[time_col]][baseline_idx]
-  O2_baseline <- df[[O2_col]][baseline_idx]
+#*************************************
+#*
+#  3) Stop-flow analysis ----
+#*
+#*************************************
+#df<- read.csv("/Users/matiasvumac/Downloads/Data_06-24-2025_001_DAY_corrected.csv")
+#markers_df <- read.csv("/Users/matiasvumac/Downloads/Data_06-24-2025_001_DAY_markers.csv")
+#i = 1
+
+stop_flow_analysis <- function(df,
+                               markers_df,
+                               filename){
   
-  # Fit Catmull-Rom spline through baseline points
-  baseline_spline <- splinefun(Seconds_baseline, O2_baseline, method = "fmm")
   
-  # Predict baseline for all times
-  df$O2_drift <- baseline_spline(df[[time_col]])
+  # a) Add "Minutes" column to data frame ----
+  df$Minutes <- df$Seconds/60
   
-  # Correct the O2 signal and shift to reference
-  df$O2_corrected <- df[[O2_col]] - (df$O2_drift - O2_ref)
   
-  return(df)
-}
+  # b) Flow rate corrected by WVP ----
+  
+  # Correct flow rate for water vapor, and add new column called "FlowRate_d":
+  # the "_d" stands for "dry", Lighton uses "_c" instead.
+  # [FRd = (BP - WVP)/BP] - Eqn. 8.6 (p. 96) of Lighton 2008.
+  df$FlowRate_d <- (df$FlowRate*(df$BP - df$WVP))/df$BP
+  
+  
+  # c) O2 ----
+
+  
+  ## c.1) Divide by 100 and 2) flip (multiply by -1) ----
+  # - Dividing by 100 gets FeO2 - FiO2.
+  # - flipping gets FiO2 - FeO2.
+  # FiO2 is the fractional concentration of O2 at the beginning [0, 1].
+  # FeO2 is the fractional concentration of O2 at the end [0, 1].
+  # See Lighton 2008 pg. 38, points 15-17.
+  df$O2_div_flip <- (df$O2_lagdriftcorrected/100) * -1
+  
+  
+  ## c.2) Enter respirometry transformation to compute VolO2 ----
+  # VolO2 = FR(FiO2 - FeO2)/(1 - FeO2)
+  # Note that: (FiO2 - FeO2) is 'O2_div_flip' in the script.
+  # Note that: FeO2 = 0.2095 - O2_div_flip, when CO2 in absorbed in a push system.
+  # This is what will be integrated later.
+  df$VolO2  <- (df$FlowRate_d * df$O2_div_flip)/(1 - (0.2095 - df$O2_div_flip))
+  
+  
+  
+  
+  # d) CO2 ----
+  
+  
+  ## d.1) Divide by 100 to get FeCO2 - FiCO2 ----
+  # FiCO2 is the fractional concentration of CO2 at the beginning [0, 1].
+  # FeCO2 is the fractional concentration of CO2 at the end [0, 1].
+  df$CO2_div <- (df$CO2_lagdriftcorrected/100)
+  
+  
+  ## d.2) Calculate [FR(FeCO2 - FiCO2)] ----
+  df$VolCO2 <- df$FlowRate_d * df$CO2_div
+  
+  
+  
+  
+  # e) Integrate ----
+  
+  # Create an empty results data frame
+  results <- data.frame(
+    Repetition = integer(),
+    Markers = integer(),
+    Start_sample = numeric(),
+    End_sample = numeric(),
+    VolO2_integral = numeric(),
+    VolCO2_integral = numeric(),
+    Mean_CO2 = numeric(),
+    filename = character(),
+
+    stringsAsFactors = FALSE
+  )
+  
+  
+  # Remove markers "B" and repetitions "0" (baseline) and "1" (first round) from the markers df.
+  markers_df_subset <- subset(markers_df, Marker != "B" & Repetition != 0 & Repetition != 1)
+  
+
+  # Loop through channels 2 to (n_frogs+1)
+  for (i in 1:nrow(markers_df_subset)) {
+    
+    # Obtain the begin and end time of each window i.
+    begin_end <- markers_df_subset[i, c("Begin_time", "End_time")]
+    
+    # Subset the data frame of the window i.
+    df_subset <- df[c(begin_end[[1]]:begin_end[[2]]), ]
+    
+    # Integrate vs. time in minutes and compute mean CO2.
+    volO2_int <- trapz(x = df_subset$Minutes, y = df_subset$VolO2)
+    volCO2_int <- trapz(x = df_subset$Minutes, y = df_subset$VolCO2)
+    mean_CO2 <- mean(df_subset$CO2_lagdriftcorrected, na.rm = TRUE)
+    
+    # Add results to empty table
+    results <- rbind(results, data.frame(
+      Repetition = markers_df_subset[i, 4],
+      Marker = markers_df_subset[i, 1],
+      Start_sample = begin_end[[1]],
+      End_sample = begin_end[[2]],
+      VolO2_integral = volO2_int,
+      VolCO2_integral = volCO2_int,
+      Mean_CO2 = mean_CO2,
+      filename = as.character(filename),
+      stringsAsFactors = FALSE))
+  }
+   return(results)
+  }
+  
+
+  
+
