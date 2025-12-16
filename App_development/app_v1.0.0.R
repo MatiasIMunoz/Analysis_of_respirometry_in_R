@@ -1463,6 +1463,8 @@ server <- function(input, output, session) {
     req(filename()) # file name for the table.
     req(input$Enclosure_time) # require "enclosure time" input
     req(params())
+    req(input$x_zoom2)
+    req(input$lag_max)
     
     analysis <- stop_flow_analysis(
       
@@ -1485,7 +1487,13 @@ server <- function(input, output, session) {
     analysis$VO2_mlhr <- analysis$VO2*60
     analysis$VCO2_mlhr <- analysis$VCO2*60
     
-
+    # Add cross-correlation window boundaries to final data frame.
+    analysis$crosscorr_lower_sec <- rep(input$x_zoom2[1], nrow(analysis))
+    analysis$crosscorr_upper_sec <- rep(input$x_zoom2[2], nrow(analysis))
+    
+    # Add maximum lag value to final data frame.
+    analysis$max_lag_sec <- rep(input$lag_max, nrow(analysis))
+    
     # Add frog ID column
     chs <- 2:(params()$N.frogs + 1)
     
@@ -1498,10 +1506,7 @@ server <- function(input, output, session) {
     
     analysis$frog_ID <- frog_id_lookup[as.character(analysis$Marker)]
     
-    # Add cross-correlation window boundaries
-    analysis$crosscorr_lower <- rep()
-    analysis$crosscorr_upper <- rep()
-    
+
     return(analysis)
   })
   
