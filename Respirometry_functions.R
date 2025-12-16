@@ -35,11 +35,26 @@ lag_correct_channels <- function(df,
     
     par(mfrow = c(1, length(channels)))
     for(ch in channels){
-      ccf_res <- ccf(x = as.numeric(xcorr_df[,"FlowRate"]), y = as.numeric(xcorr_df[,ch]), lag.max = lag.max, main = "")
-      max_lag_index <- which.max(abs(ccf_res$acf))
-      max_lag <- ccf_res$lag[max_lag_index];max_lag # find lag
+      ccf_res <- ccf(x = as.numeric(xcorr_df[,"FlowRate"]), y = as.numeric(xcorr_df[,ch]), lag.max = lag.max, main = "", plot = F)
+
+      xcorr_negative <- cbind.data.frame(lag = ccf_res$lag, acf = (ccf_res$acf)^2) # Create data frame with lags and cross-correla
+      xcorr_negative <-  subset(xcorr_negative, lag <= 0) # Keep only negative lags
+      
+      plot(xcorr_negative$lag, xcorr_negative$acf, type = "l", xlab = "lag (s)", ylab = "Cross-correlation squared")
+      
+      polygon(
+        x = c(xcorr_negative$lag, rev(xcorr_negative$lag)),
+        y = c(xcorr_negative$acf, rep(0, length(xcorr_negative$acf))),
+        col = "black",
+        border = NA
+      )
+      
+      
+      max_lag_index <- which.max(xcorr_negative$acf)
+      max_lag <- xcorr_negative$lag[max_lag_index]
+      max_lag # find lag
       abline(v = max_lag, col = "red")
-      lag_val <- ccf_res$lag[max_lag_index]
+      lag_val <- xcorr_negative$lag[max_lag_index]
       lags[ch] <- lag_val
       title(paste0(ch," (lag = ", lag_val," seconds)") )
       ccf_results[[ch]] <- ccf_res
@@ -79,7 +94,9 @@ mid_B_to_2 <- function(x) {
 
 stop_flow_analysis <- function(df,
                                markers_df,
-                               filename){
+                               filename,
+                               enclosure_time,
+                               nfrogs){
   
   
   # a) Add "Minutes" column to data frame ----
@@ -137,12 +154,13 @@ stop_flow_analysis <- function(df,
   results <- data.frame(
     Repetition = integer(),
     Markers = integer(),
+    Enclosure_time_m = integer(),
     Start_sample = numeric(),
     End_sample = numeric(),
     VolO2_integral = numeric(),
     VolCO2_integral = numeric(),
     Mean_CO2 = numeric(),
-    filename = character(),
+    Filename = character(),
 
     stringsAsFactors = FALSE
   )
@@ -170,15 +188,20 @@ stop_flow_analysis <- function(df,
     results <- rbind(results, data.frame(
       Repetition = markers_df_subset[i, 4],
       Marker = markers_df_subset[i, 1],
+      Enclosure_time_m = (enclosure_time*nfrogs)/60,
       Start_sample = begin_end[[1]],
       End_sample = begin_end[[2]],
       VolO2_integral = volO2_int,
       VolCO2_integral = volCO2_int,
       Mean_CO2 = mean_CO2,
-      filename = as.character(filename),
+      Filename = as.character(filename),
       stringsAsFactors = FALSE))
   }
-   return(results)
+  
+  
+  return(results)
+  
+  
   }
   
 

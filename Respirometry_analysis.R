@@ -38,9 +38,9 @@ folder <- "/data/"
 # Name of the file.
 #filename <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
 #str(filename_test)
-#filename <- "Data_06-24-2025_001_DAY.txt"
+filename <- "Data_06-24-2025_001_DAY.txt"
 #filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
-filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
+#filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
 #filename <- "Data_06-27-2025_001_DAY_LagDrift.txt" #n_frogs = 7, n_reps = 4
 #filename <- "Data_06-26-2025_001_DAY_SETUP1_LagDrift.txt" #n_frogs = 7, n_reps = 4
 #filename <- "Data_06-27-2025_001_NoPlaybackRMR_LagDrift.txt" #n_frogs = 5, n_reps = 3
@@ -146,6 +146,19 @@ ggplot(df)+
   annotate("rect", xmin =  xcorr_window[[1]], xmax = xcorr_window[[2]], ymin = -Inf, ymax = Inf,alpha = 0.2, fill = "red")+
   my.theme
   
+xcorr_test <- ccf(x = as.numeric(df[,"FlowRate"]), y = as.numeric(df[,"O2"]), lag.max = 200, main = "", plot = TRUE)
+
+xcorr_df <- cbind.data.frame(lag = xcorr_test$lag, acf = (xcorr_test$acf)^2)
+xcorr_df <-  subset(xcorr_df, lag <= 0)
+
+max_lag_index <- which.max((xcorr_df$acf))
+max_lag <- xcorr_test$lag[max_lag_index];max_lag # find lag
+
+plot(acf ~lag,data = xcorr_df, type = "l")
+
+abline(v = max_lag, col = "red")
+
+
 
 lags_ch <- lag_correct_channels(df)
 
@@ -186,6 +199,19 @@ ggplot(xcorr_df)+
 ccf_O2 <- ccf(y = as.numeric(xcorr_df$O2), 
               x = as.numeric(xcorr_df$FlowRate), 
               lag.max = 500)
+
+ccf_O2$acf
+ccf_O2$lag
+
+plot(ccf_O2$lag, (ccf_O2$acf)^1, type = "l")
+# Add shaded area under the curve
+polygon(
+  x = c(ccf_O2$lag, rev(ccf_O2$lag)),
+  y = c((ccf_O2$acf)^1, rep(0, length(ccf_O2$acf))),
+  col = "black",   # semi-transparent blue
+  border = NA
+)
+
 
 max_lag_index <- which.max(abs(ccf_O2$acf))
 max_lag <- ccf_O2$lag[max_lag_index];max_lag # find lag

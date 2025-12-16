@@ -1,0 +1,250 @@
+##################
+# Load libraries
+##################
+library(ggplot2)
+library(dplyr)
+library(gridExtra)
+library(tidyr)
+
+set.seed(1)
+
+my.theme <-theme_bw()+ 
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank(),
+        plot.title = element_text(face="bold"), 
+        strip.background = element_rect(colour = "black", fill = "white"), 
+        strip.text.x = element_text(colour = "black", face = "bold"))
+
+
+##################
+# ggplot2 theme
+##################
+my.theme <- theme_bw()+
+           theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        text = element_text(size = 15,family = "Times New Roman"))
+
+col_A <- "darkorange"
+col_B <- "darkviolet"
+
+##################
+#
+# Simulate MASS data, in grams.
+#
+# mean = 100 gr
+# sd = 10 gr
+# population size = 1000 individuals
+#
+##################
+pop_size <- 1000
+mean_mass <- 0
+sd_mass <- 1
+
+mass <- rnorm(n = pop_size, mean = mean_mass, sd = sd_mass)
+mass <- abs(min(mass)) + mass
+df_mass <- as.data.frame(mass)
+
+#Plot histogram of weights
+p_mass <- ggplot(df_mass, aes(x = mass))+
+  geom_histogram(aes(y = after_stat(density)), color="grey85", fill="grey90")+
+  geom_density(position = "identity", fill="grey70", col = NA, alpha = 0.5)+
+  labs(x = "Resource holding potential (rhp)")+
+  my.theme;p_mass
+
+
+
+##################
+#
+# Simulate FREQUENCY data that is correlated to body weight. 
+#
+##################
+b0 <- 6500
+b1 <- -0.4
+error_sigma <- 0.5
+
+#Simulate correlated data
+Frequency <- b0 + (b1 * mass) + rnorm(n = pop_size, mean = 0, sd = error_sigma)
+
+#Combine Mass and Frequency data into a single data frame (df)
+df <- cbind.data.frame(Mass_gr = df_mass, Frequency_Hz = Frequency)
+
+#Mass versus Frequency plot
+ggplot(df, aes(x = mass, y = Frequency))+
+  geom_point(shape = 21, size = 3, fill = "grey90")+
+  geom_smooth(method = "lm", se = FALSE, color = "red")+
+  labs(x = "Mass (gr)", y = "Frequency (Hz)")+
+  my.theme
+
+lm0 <- lm(Frequency_Hz ~ mass, data = df)
+summary(lm0)
+
+
+
+##################
+# Sample two random rivals from mass pool.
+##################
+rivals <- sample_n(df, 2, replace = FALSE)
+rivals
+
+mass_A <- rivals[1, 1]
+mass_B <- rivals[2, 1]
+#rival_C <- rivals[3, 1]
+
+max_dens <- max(density(df$mass)$y)
+min_dens <- min(density(df$mass)$y)
+
+
+p1<- ggplot(df_mass, aes(x = mass))+
+  geom_density(position = "identity", fill="grey70", col = NA, alpha = 0.5)+
+  geom_vline(xintercept = c(mass_A, mass_B), linetype = "dashed", color = c(col_A, col_B), linewidth = 1)+
+  annotate("label", x = c(mass_A, mass_B), y = c(max_dens*0.6, max_dens*0.4), label = c("A", "B"), col = c(col_A, col_B), size = 5)+
+  annotate("label", x = c(mass_A, mass_B), y = c(max_dens*0.53, max_dens*0.33), 
+           label = c(paste(round(mass_A, 1),"gr"), paste(round(mass_B, 1),"gr")), col = c(col_A, col_B), size = 5)+
+  labs(x = "Weight [gr]", y = "Density")+
+  my.theme;p1
+
+##################
+#
+# The model
+#
+##################
+
+# For a given pair of animals, A and B,
+# the cost per step for A, c_A, will depend not only on
+# the size and strength of B but also on the size and strength of A.
+# The ratio c_A/c_B describes the opponents’ 
+# relative abilities to inflict costs on each other.
+
+# theta_AB = ln(c_B/c_A), becomes:
+# theta_AB = ln(w_A/w_B). 
+
+##################
+# Theta (relative fighting ability)
+##################
+c_B <- mass_A
+c_A <- mass_B
+
+theta_AB = log(mass_A/mass_B)
+theta_BA = log(mass_B/mass_A)
+
+theta_AB
+theta_BA
+
+
+#Equation 3
+thetas <- seq(from = -10, to = 10, by = 0.01)
+
+dens <- exp(thetas)/((1 + exp(thetas))^2)
+plot(thetas, dens, type = "l")
+
+##################
+# Individual costs
+##################
+c <- 0.005 # a constant
+
+c_A <- c*exp(theta_BA/2)
+c_B <- c*exp(theta_AB/2)
+
+c_A
+c_B
+
+##################
+# Relative fighting hability sampling with error
+##################
+mean <- 0
+sigma <- 1
+
+# Animal A observes:
+yi_A <- theta_AB + rnorm(1, mean = mean, sd = sigma)
+yi_A
+# Animal B observes
+yi_B <- theta_BA + rnorm(1, mean = mean, sd = sigma)
+yi_B
+
+
+
+
+##################
+# After n steps
+##################
+n_steps <- 8
+seq_steps <- seq(1:n_steps)
+
+#Create empty data frame to fill with loop
+data <- data.frame("Step" = rep(NA, n_steps),
+                   "y_A" = rep(NA, n_steps),
+                   "y_B" = rep(NA, n_steps))
+
+
+for(i in 1:n_steps){
+  
+  yi_A <- theta_AB + rnorm(1, mean = 0, sd = sigma/sqrt(i))
+  yi_B <- theta_BA + rnorm(1, mean = 0, sd = sigma/sqrt(i))
+  
+  new_row <- cbind.data.frame("Step" = i,
+                              "y_A" = yi_A,
+                              "y_B" = yi_B)
+  data[i , ] <- new_row
+  
+}
+
+#Get cumulative mean
+data$x_A <- cummean(data$y_A)
+data$x_B<- cummean(data$y_B)
+
+#Data frame with Xs
+data_long <- data[,c(1,4,5)]
+data_long <- gather(data_long, Individual, Measure, x_A:x_B, factor_key=TRUE)
+
+data_long$Step <- as.integer(data_long$Step)
+
+#ggplot2
+p2 <- ggplot(data_long, aes(x = Step, y = Measure, col = Individual))+
+      geom_line()+
+      scale_color_manual(values=c(col_A, col_B))+
+      geom_hline(yintercept = theta_AB, linetype = "dashed", col = col_A, linewidth = 0.1)+
+      geom_hline(yintercept = theta_BA, linetype = "dashed", col = col_B, linewidth = 0.1)+
+      geom_hline(yintercept = 0, col = "grey50", linetype = "dashed")+
+      ylim(-(max(abs(data_long$Measure))), (max(abs(data_long$Measure))))+
+      my.theme; p2
+       
+
+grid.arrange(p1, p2, ncol = 2)
+
+#Plot with base R
+plot(x = data$Step, y = data$x_A, type = "l", ylim = c(-1, 1), col = col_A, lwd = 2,
+     xlab = "Step", ylab = "x", las = 1)
+lines(x = data$Step, y = data$x_B, col = col_B, lwd = 2)
+abline(a = 0, b = 0, col = "grey50", lty = "dashed")
+abline(a = theta_AB, b = 0, col = col_A, lty = "dashed", lwd = 0.5)
+abline(a = theta_BA, b = 0, col = col_B, lty = "dashed", lwd = 0.5)
+
+
+ggplot(data, aes(x = seq_steps))+
+  geom_line(x = seq_steps, y = x_A)
+
+
+yn_A <- replicate(n = n_steps,
+                  expr = theta_AB + rnorm(1, mean = mean, sd = sigma))
+yn_B <- replicate(n = n_steps,
+                  expr = theta_BA + rnorm(1, mean = mean, sd = sigma))
+
+
+sum_ya_A <- cumsum(yn_A)
+sum_ya_B <- cumsum(yn_B)
+
+df_A <- cbind.data.frame(step = seq(1:length(sum_ya_A)), cum_sum = sum_ya_A)
+df_A$x_A <- df_A$cum_sum/sqrt(df_A$step)
+
+df_B <- cbind.data.frame(step = seq(1:length(sum_ya_B)), cum_sum = sum_ya_B)
+df_B$x_B <- df_B$cum_sum/sqrt(df_B$step)
+
+
+
+
+xn_A <- mean(yn_A)
+xn_B <- mean(yn_B)
+
+uncertanty_avg <- sigma/sqrt(n_steps)
+
+

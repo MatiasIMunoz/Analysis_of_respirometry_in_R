@@ -43,6 +43,16 @@ ui <- page_navbar(
   
   title = "Stop-flow respirometry analysis",
   
+  # This just makes the handle knowbs of sliderInput() smaller, so selecting smaller values is easier...
+  tags$head(
+    tags$style(HTML("
+      .irs-handle {
+        width: 10px !important; 
+        height: 10px !important;
+        top:13px !important;
+      }
+    "))
+  ),
   
   #********************************
   # 
@@ -54,6 +64,8 @@ ui <- page_navbar(
        
             layout_sidebar(
               sidebar = sidebar(
+                
+                #Load CSV file
                 tags$p(tags$b("Load your .csv file:")),
                 fileInput("file1", "Choose a file",
                           multiple = FALSE,
@@ -69,6 +81,15 @@ ui <- page_navbar(
                 tags$p(tags$b("Define some basic parameters:")),
                 numericInput("N.frogs", "Number of frogs:", value = 1, min = 1, max = 7, step = 1),
                 numericInput("N.reps", "Number of repetitions:", value = 1, min = 1, max = 20, step = 1),
+                
+                textInput("ID_Ch2", "ID channel 2:", value = ""),
+                textInput("ID_Ch3", "ID channel 3:", value = ""),
+                textInput("ID_Ch4", "ID channel 4:", value = ""),
+                textInput("ID_Ch5", "ID channel 5:", value = ""),
+                textInput("ID_Ch6", "ID channel 6:", value = ""),
+                textInput("ID_Ch7", "ID channel 7:", value = ""),
+                textInput("ID_Ch8", "ID channel 8:", value = ""),
+                
                 actionButton("apply_params", "Apply parameters", style = "color: white; background-color: darkblue; border-color: darkblue;"),
                 tags$br(), tags$br(),
                 textOutput("param_status") 
@@ -115,6 +136,8 @@ ui <- page_navbar(
                tags$p(tags$b("Recording details:")),
                tableOutput("params_table"),
                
+               sliderInput("x_zoom2", "Choose a cross-correlation window:", min = 0, max = 10, value = c(0, 5)),
+               
                numericInput("lag_max", "Maximum lag for cross-correlation (s):", value = 200, min = 50, max = 400, step = 1),
                actionButton("LagCorr", label = "Correct lag",  style = "color: white; background-color: darkblue; border-color: darkblue;"),
                
@@ -141,6 +164,9 @@ ui <- page_navbar(
 
              div(
                style = "overflow-y:auto; max-height:75vh; padding-right:10px; width:100%;",
+               
+               tags$h4("Select a window for cross-correlation analysis:"),
+               plotOutput("plotCrossCorrWin", width = "95%", height = "800px"),
                
                tags$h4("Lag in each channel:"),
                plotOutput("plotLag", width = "95%", height = "800px"),
@@ -236,8 +262,8 @@ nav_panel("4) Check your data",
               
                sliderInput("x_zoom_tab4", "Zoom in:", min = 0, max = 10, value = c(0, 5)),
                tags$hr(),
-               downloadButton("download_drift", "Download corrected data (CSV)"),
-               downloadButton("download_markers", "Download markers data (CSV)")
+               downloadButton("download_drift", "Download corrected data (.csv)"),
+               downloadButton("download_markers", "Download markers data (.csv)")
             ),
             
             
@@ -274,8 +300,10 @@ nav_panel("4) Check your data",
            layout_sidebar(
              sidebar = sidebar(
                
-               actionButton("Analyse", label = "Analyse!",  style = "color: white; background-color: darkblue; border-color: darkblue;")
-             
+               sliderInput("Enclosure_time", "Flush time (s):", min = 10, max = 1200, value = 600, step = 1),
+               actionButton("Analyse", label = "Analyse!",  style = "color: white; background-color: darkblue; border-color: darkblue;"),
+               tags$hr(),
+               downloadButton("download_results", "Download results (.csv)")
                ),
              layout_column_wrap(
                width = 1,
@@ -283,15 +311,16 @@ nav_panel("4) Check your data",
                tags$div(
                  style = "background-color:#f8f9fa; border-left:4px solid #0056b3; padding:12px; margin-bottom:5px; border-radius:5px; width:100%; max-height:250px; overflow-y:auto;",
                  tags$h5("Instructions:"),
-                 tags$p("1) blablabla."),
+                 tags$p("1) The app will analyze the lag- and drif-corrected gases."),
                  tags$hr(),
                  #tags$p("2) Click the 'Correct drift' button. This will fit a Forsythe, Malcolm and Moler spline, and substract the predicted values for O2 and CO2 from the lag-corrected values."),
                ),
                
                div(
-                 tags$p(tags$b("Markers:")),
-                 tableOutput("markers_table"),
-                 tableOutput("results")
+                 tags$p(tags$b("Results:")),
+                 #tableOutput("markers_table"),
+                 DTOutput("results"),
+                 #tableOutput("results")
                  
                  
                  
@@ -329,9 +358,10 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   datafile <- reactive({
     req(input$file1)
+    
     df <- read.csv(input$file1$datapath, sep = ",", quote = '"')
     
-    # Change marker at t = 0 to 50
+    # Change marker at t = 0 to from -1 to 50, to the first value is a marker
     if ("Marker" %in% names(df)) { 
       df$Marker[1] <- 50
     }
@@ -402,6 +432,7 @@ server <- function(input, output, session) {
   ## 1.5) Preview head of data frame ----
   #______________________________________________________________________
   output$contents <- renderTable({
+    req(datafile())
     df <- datafile()
     
     head(df)
@@ -463,6 +494,61 @@ server <- function(input, output, session) {
   }, rownames = FALSE) 
   
   
+  #______________________________________________________________________
+  ## X.X) Update Y variable selector and slider range after file is loaded ----
+  #______________________________________________________________________
+  observeEvent(datafile(), {
+    df <- datafile()
+    #cols <- setdiff(names(df), "Seconds")  # exclude x-axis
+ 
+    # Update zoom slider range
+    updateSliderInput(session, "x_zoom2",
+                      min = min(df$Seconds),
+                      max = max(df$Seconds),
+                      value = c(min(df$Seconds), 
+                                max(df$Seconds)/2))
+  })
+  
+  
+  #______________________________________________________________________
+  ## X.X) Plot cross correlation window ----
+  #______________________________________________________________________
+  
+  output$plotCrossCorrWin <- renderPlot({
+    
+    req(datafile())
+    req(input$x_zoom2)
+    
+    marker_times <- datafile()$Seconds[datafile()$Marker != -1]
+    
+    p0 <-
+    ggplot(datafile(), aes(x = Seconds, y = O2)) +
+      annotate("rect", xmin = input$x_zoom2[1], xmax = input$x_zoom2[2], ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.05)+
+      geom_line(color = "black") +
+      coord_cartesian(xlim = input$x_zoom2)+
+      geom_vline(xintercept = marker_times, color = "grey30", linetype = "solid", alpha = 0.4)+
+      my_theme
+
+    p1 <- 
+    ggplot(datafile(), aes(x = Seconds, y = CO2)) +
+      annotate("rect", xmin = input$x_zoom2[1], xmax = input$x_zoom2[2], ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.05)+
+      geom_line(color = "black") +
+      coord_cartesian(xlim = input$x_zoom2)+
+      geom_vline(xintercept = marker_times, color = "grey30", linetype = "solid", alpha = 0.4)+
+      my_theme
+    
+    p2 <- 
+      ggplot(datafile(), aes(x = Seconds, y = FlowRate)) +
+      annotate("rect", xmin = input$x_zoom2[1], xmax = input$x_zoom2[2], ymin = -Inf, ymax = Inf, fill = "blue", alpha = 0.05)+
+      geom_line(color = "black") +
+      coord_cartesian(xlim = input$x_zoom2)+
+      geom_vline(xintercept = marker_times, color = "grey30", linetype = "solid", alpha = 0.4)+
+      my_theme
+    
+    gridExtra::grid.arrange(p0, p1, p2, ncol = 1)
+    
+    
+  }, height = 600)
   
   
   #______________________________________________________________________
@@ -572,13 +658,15 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   xcorr_analysis <- eventReactive(input$LagCorr,{
     req(datafile())
-    req(xcorr_window())
+    #req(xcorr_window())
+    req(input$x_zoom2)
     req(input$lag_max)
 
     df <- datafile()
     
    lags_ch <- lag_correct_channels(df,
-                                   window = xcorr_window(),
+                                   window = input$x_zoom2,
+                                  # window = xcorr_window(),
                                    lag.max = input$lag_max) 
    
    lags_ch
@@ -610,6 +698,7 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   output$ccfPlot <- renderPlot({
     req(xcorr_analysis())
+    
     res <- xcorr_analysis()
     
     par(mfrow = c(1, length(res$ccf))) # figure with 3 panels
@@ -883,8 +972,8 @@ server <- function(input, output, session) {
  
     
     # Span O2 and CO2 to 0 (zero).
-    drift_df$O2_lagdriftcorrected  <- drift_df$O2_lagdriftcorrected  - abs(max(drift_df$O2_lagdriftcorrected, na.rm = TRUE)) # remove maximum to avoid positive values
-    drift_df$CO2_lagdriftcorrected  <- drift_df$CO2_lagdriftcorrected + abs(min(drift_df$CO2_lagdriftcorrected, na.rm = TRUE)) # add minimum to avoid negative values
+    #drift_df$O2_lagdriftcorrected  <- drift_df$O2_lagdriftcorrected  - abs(max(drift_df$O2_lagdriftcorrected, na.rm = TRUE)) # remove maximum to avoid positive values
+    #drift_df$CO2_lagdriftcorrected  <- drift_df$CO2_lagdriftcorrected + abs(min(drift_df$CO2_lagdriftcorrected, na.rm = TRUE)) # add minimum to avoid negative values
 
     return(drift_df)
   })
@@ -1181,30 +1270,90 @@ output$plotPreAnalysis <- renderPlot({
 resp_analysis <- eventReactive(input$Analyse, {
   req(dataframe_drift()) # lag- and drift-corrected data frame.
   req(markers_df()) # markers data frame to know where to integrate.
-  req(filename())
-  
+  req(filename()) # file name for the table.
+  req(input$Enclosure_time) # require "enclosure time" input
+  req(params())
   
   analysis <- stop_flow_analysis(
     
     df = dataframe_drift(),
     markers_df = markers_df(),
-    filename = filename()
+    filename = filename(),
+    enclosure_time = input$Enclosure_time,
+    nfrogs = params()$N.frogs
     
     )
   
+  # Divide by VolO2 by enclosure time to obtain VO2.
+  analysis$VO2 <- analysis$VolO2_integral/analysis$Enclosure_time_m
+  
+  # Calculate VCO2
+  # VCO2 = FR(FeCO2 - FiCO2) - FeCO2*VO2)/(1 - FeCO2)
+  analysis$VCO2 <- ((analysis$VolCO2_integral/analysis$Enclosure_time_m) - analysis$Mean_CO2*analysis$VO2)/(1 - analysis$Mean_CO2)
+  
+  # Transform to hourly rates (multiply VO2 and VCO2 by 60)
+  analysis$VO2_mlhr <- analysis$VO2*60
+  analysis$VCO2_mlhr <- analysis$VCO2*60
+  
+  
+  return(analysis)
   })
 
 #______________________________________________________________________
 ## 5.3) Results table ----
 #______________________________________________________________________
-output$results <- renderTable({
-  req(resp_analysis())
+#output$results <- renderTable({
+ # req(resp_analysis())
   
-  print(resp_analysis())
+  #print(resp_analysis())
   
-})
+#})
 
 
+  output$results <- renderDT({
+    req(resp_analysis())
+    
+    datatable(
+      resp_analysis(),
+      options = list(
+        scrollX = TRUE,
+        scrollY = "400px",
+        scrollCollapse = TRUE,
+        paging = FALSE,
+        searching = FALSE,
+        info = FALSE,
+        autoWidth = TRUE,
+        fixedColumns = TRUE
+      ),
+      rownames = FALSE,
+      class = "compact hover stripe nowrap"
+    ) %>%
+      formatRound(
+        columns = c("VolO2_integral", "VolCO2_integral", "Mean_CO2", "VO2", "VCO2", "VO2_mlhr", "VCO2_mlhr"),
+        digits = c(2,2,5,5,5,5,5)
+      )
+  })
+  
+  
+  #______________________________________________________________________
+  ## 5.XX) Download results  ----
+  #______________________________________________________________________
+  output$download_results <- downloadHandler(
+    filename = function() {
+      req(filename())
+      
+      # Remove .csv extension from original filename
+      base <- sub("\\.csv$", "", filename())
+      
+      paste0(base, "_results.csv")
+    },
+    
+    content = function(file) {
+      req(resp_analysis())
+      write.csv(resp_analysis(), file, row.names = FALSE)
+    }
+  )
+  
 
 }
 
