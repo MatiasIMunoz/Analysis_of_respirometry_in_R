@@ -48,7 +48,7 @@ ui <- page_navbar(
   title = tags$div(
     "Stop-flow respirometry analysis",
     tags$div(
-      "version: 1.0.1 (14 January 2025)",
+      "version: 1.0.0 (18 December 2025)",
       style = "font-size: 0.6em; opacity: 0.8;"
     )
   ),
@@ -160,25 +160,16 @@ ui <- page_navbar(
                 tags$p(tags$b("Recording details:")),
                 tableOutput("params_table"),
                 
-                sliderInput("x_zoom2", "Choose a cross-correlation window (s):", min = 0, max = 10, value = c(0, 5), step = 1),
+                sliderInput("x_zoom2", "Choose a cross-correlation window:", min = 0, max = 10, value = c(0, 5)),
                 
                 numericInput("lag_max", "Maximum lag for cross-correlation (s):", value = 200, min = 50, max = 400, step = 1),
+                actionButton("LagCorr", label = "Correct lag",  style = "color: white; background-color: darkblue; border-color: darkblue;"),
                 
-                actionButton("LagCorr", label = "Compute lag correction",  style = "color: white; background-color: darkblue; border-color: darkblue;"),
-                
-                #tags$p(tags$b("Cross correlation window (s):")),
-                #tableOutput("xcorr_window_table"),
+                tags$p(tags$b("Cross correlation window (s):")),
+                tableOutput("xcorr_window_table"),
 
-                #tags$p(tags$b("Calculated lags (s):")),
-                #tableOutput("lags_table"),
-                
                 tags$p(tags$b("Calculated lags (s):")),
-                numericInput("lagO2input", "Lag O2:", value = 0, min = 0, max = 500, step = 1),
-                numericInput("lagCO2input", "Lag CO2:", value = 0, min = 0, max = 500, step = 1),
-                numericInput("lagWVPinput", "Lag WVP:", value = 0, min = 0, max =500, step = 1),
-                
-                #actionButton("ApplyLagCorr", label = "Apply lag correction",  style = "color: white; background-color: darkblue; border-color: darkblue;"),
-                
+                tableOutput("lags_table")
               ),
               
               
@@ -210,18 +201,17 @@ ui <- page_navbar(
                   tags$hr(),
                   
                   tags$h4("Lag in each channel:"),
-                  #plotOutput("plotLagReactive", width = "95%", height = "200px"),
-                  #plotOutput("plotLag", width = "95%", height = "800px"),
+                  plotOutput("plotLag", width = "95%", height = "800px"),
                   plotlyOutput("ploty_fig", width = "95%", height = "800px"), # added 9 December 2025
                   
-                  
+
                   
 
                   tags$hr(),
                   
-                  #tags$h4("Lag-corrected data frame:"),
+                  tags$h4("Lag-corrected data frame:"),
                   #tableOutput("LagCorrTable")
-                  #DTOutput("LagCorrTable")
+                  DTOutput("LagCorrTable")
                 )
                 
               )
@@ -303,9 +293,8 @@ ui <- page_navbar(
                 
                 sliderInput("x_zoom_tab4", "Zoom in:", min = 0, max = 10, value = c(0, 5)),
                 tags$hr(),
-                downloadButton("download_drift", "Export corrected data as CSV"),
-                downloadButton("download_markers", "Export markers data as CSV"),
-                downloadButton(outputId = "downloadPreAnalysisPDF",label = "Export plot as PDF"),
+                downloadButton("download_drift", "Download corrected data (.csv)"),
+                downloadButton("download_markers", "Download markers data (.csv)")
               ),
               
               
@@ -600,7 +589,7 @@ server <- function(input, output, session) {
   
   
   #______________________________________________________________________
-  ## 2.2) Update Y variable selector and slider range after file is loaded ----
+  ## X.X) Update Y variable selector and slider range after file is loaded ----
   #______________________________________________________________________
   observeEvent(datafile(), {
     df <- datafile()
@@ -616,7 +605,7 @@ server <- function(input, output, session) {
   
   
   #______________________________________________________________________
-  ## 2.3) Plot cross correlation window ----
+  ## X.X) Plot cross correlation window ----
   #______________________________________________________________________
   
   output$plotCrossCorrWin <- renderPlot({
@@ -685,20 +674,20 @@ server <- function(input, output, session) {
   
   
   #______________________________________________________________________
-  ## 2.4) Small table for cross-correlation window ----
+  ## 2.3) Small table for cross-correlation window ----
   #______________________________________________________________________
-  #output$xcorr_window_table <- renderTable({
-  #  req(input$x_zoom2)
+  output$xcorr_window_table <- renderTable({
+    req(input$x_zoom2)
     
-   # data.frame(
-    #  Start =  input$x_zoom2[[1]],
-     # End =  input$x_zoom2[[2]]
-#    )
- # }, rownames = FALSE) 
+    data.frame(
+      Start =  input$x_zoom2[[1]],
+      End =  input$x_zoom2[[2]]
+    )
+  }, rownames = FALSE) 
   
   
   #______________________________________________________________________
-  ## 2.5) Run cross-correlation analysis ----
+  ## 2.4) Run cross-correlation analysis ----
   #______________________________________________________________________
   xcorr_analysis <- eventReactive(input$LagCorr,{
     req(datafile())
@@ -717,99 +706,57 @@ server <- function(input, output, session) {
   })
   
   
-  #______________________________________________________________________
-  ##2.X) WORKING  Manual adjust lag ----
-  #______________________________________________________________________
-  observeEvent(xcorr_analysis(), {
-    req(xcorr_analysis())
-    
-    lags <- xcorr_analysis()$lags
-
-    # Update lags with the automatic estimate using xcorrelation:
-    updateNumericInput(session, "lagO2input",
-                       value = abs(lags[["O2"]]))
-    updateNumericInput(session, "lagCO2input",
-                       value = abs(lags[["CO2"]]))
-    updateNumericInput(session, "lagWVPinput",
-                       value = abs(lags[["WVP"]]))
-    
-  })
   
-  #______________________________________________________________________
-  ##2.X) WORKING  Interactive lag ----
-  #______________________________________________________________________
-  effective_lags <- reactive({
-    req(input$lagO2input, input$lagCO2input, input$lagWVPinput)
-    
-    list(
-      O2  = input$lagO2input,
-      CO2 = input$lagCO2input,
-      WVP = input$lagWVPinput
-    )
-  })
   
   
   #______________________________________________________________________
-  ## 2.6) Create lag-corrected data frame for O2, CO2, WVP ----
+  ## 2.8) Create lag-corrected data frame for O2, CO2, WVP ----
   #_____________________________________________________________________-
+#  df_lag <- reactive({
+ #   req(datafile())
+  #  req(xcorr_analysis())
+    
+   # df_lag <- datafile()
+    #lags <- xcorr_analysis()$lags
+    
+    #O2_lag <- abs(lags[["O2"]])
+    #CO2_lag <- abs(lags[["CO2"]]) 
+    #WVP_lag <- abs(lags[["WVP"]])
+    
+    # Fixed: using correct channel data for each correction
+#    df_lag$O2_lagcorrected <- c(df_lag$O2[-(1:O2_lag)], rep(NA, O2_lag))
+ #   df_lag$CO2_lagcorrected <- c(df_lag$CO2[-(1:CO2_lag)], rep(NA, CO2_lag))
+  #  df_lag$WVP_lagcorrected <- c(df_lag$WVP[-(1:WVP_lag)], rep(NA, WVP_lag))
+    
+   # return(df_lag)
+  #})
+  
   #Solution:
   df_lag <- reactive({
     req(datafile())
-    #req(xcorr_analysis()) # commented 12Jan26
-    req(effective_lags())
+    req(xcorr_analysis())
     
-    df <- datafile()
-    #lags <- xcorr_analysis()$lags # commented 12Jan26
-    lags <- effective_lags()
+    df_lag <- datafile()
+    lags <- xcorr_analysis()$lags
     
-    #O2_lag  <- abs(lags[["O2"]])
-    #CO2_lag <- abs(lags[["CO2"]])
-    #WVP_lag <- abs(lags[["WVP"]])
+    O2_lag  <- abs(lags[["O2"]])
+    CO2_lag <- abs(lags[["CO2"]])
+    WVP_lag <- abs(lags[["WVP"]])
     
     shift <- function(x, n) {
       if (n == 0) return(x)              # no shift REMOVED <=
       c(x[(n+1):length(x)], rep(NA, n))  # shift forward
     }
     
-    df$O2_lagcorrected  <- shift(df$O2,  lags$O2)
-    df$CO2_lagcorrected <- shift(df$CO2, lags$CO2)
-    df$WVP_lagcorrected <- shift(df$WVP, lags$WVP)
+    df_lag$O2_lagcorrected  <- shift(df_lag$O2,  O2_lag)
+    df_lag$CO2_lagcorrected <- shift(df_lag$CO2, CO2_lag)
+    df_lag$WVP_lagcorrected <- shift(df_lag$WVP, WVP_lag)
     
-    #df_lag$O2_lagcorrected  <- shift(df_lag$O2,  O2_lag)
-    #df_lag$CO2_lagcorrected <- shift(df_lag$CO2, CO2_lag)
-    #df_lag$WVP_lagcorrected <- shift(df_lag$WVP, WVP_lag)
-    
-    df
-  })
-  
-  
-  #____________________________________________________________________
-  ## WORKING 2.X) REACTIVE Plot lag correction ----
-  #______________________________________________________________________
-  output$plotLagReactive <- renderPlot({
-    
-    req(datafile())
-    req(df_lag())
-    req(xcorr_analysis())
-    req(input$x_zoom2) 
-    
-    
-    df <- datafile()
-    df_lag <- df_lag()
-    
-    ggplot(df_lag, aes(x = Seconds)) +
-      geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-      geom_line(aes(y = O2, color = "original"), linewidth = 1) +
-      geom_line(data = df_lag, aes(y = O2_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
-      scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
-      theme_minimal(base_size = 14) +
-      labs(title =  "O2 vs Time", x = "Seconds", y = "O2", color = "")+
-      my_theme+
-      lims(x =  input$x_zoom2)
+    df_lag
   })
   
   #______________________________________________________________________
-  ## 2.7) Plot lag correction ----
+  ## 2.5) Plot lag correction ----
   #______________________________________________________________________
    output$plotLag <- renderPlot({
     
@@ -868,7 +815,7 @@ server <- function(input, output, session) {
   
   
   #______________________________________________________________________
-  ## 2.8) PlotLY lag correction ----
+  ## 2.X) PlotLY lag correction ----
   #______________________________________________________________________
   
   output$ploty_fig <- renderPlotly({
@@ -890,8 +837,7 @@ server <- function(input, output, session) {
       labs(title =  "", x = "Seconds", y = "O2", color = "")+
       my_theme,
       height = 500
-      ) %>%
-      layout(yaxis = list(fixedrange = TRUE)) # fix y-axis when zooming in or out.
+      )
     
     plotly_CO2<- 
       ggplotly(ggplot(df_lag, aes(x = Seconds)) +
@@ -903,8 +849,7 @@ server <- function(input, output, session) {
                  labs(title =  "", x = "Seconds", y = "CO2", color = "")+
                  my_theme,
                height = 500
-      ) %>%
-      layout(yaxis = list(fixedrange = TRUE)) # fix y-axis when zooming in or out.
+      )
     
     plotly_WVP <-
       ggplotly(ggplot(df_lag, aes(x = Seconds)) +
@@ -916,8 +861,7 @@ server <- function(input, output, session) {
       labs(title =  "", x = "Seconds", y = "WVP", color = "")+
       my_theme,
       height = 500
-      ) %>%
-      layout(yaxis = list(fixedrange = TRUE)) # fix y-axis when zooming in or out.
+      )
     
     plotly_O2 %>% layout(xaxis = list(rangeslider = list()))
     plotly_CO2 %>% layout(xaxis = list(rangeslider = list()))
@@ -933,24 +877,24 @@ server <- function(input, output, session) {
 
   
   #______________________________________________________________________
-  ##REMOVED 2.9) DF Table for lags ----
+  ## 2.6) Table for lags ----
   #______________________________________________________________________
- #output$lags_table <- renderTable({
-  #  req(xcorr_analysis())
+ output$lags_table <- renderTable({
+    req(xcorr_analysis())
     
     # Create a small data frame
-   # data.frame(
-    #  Channel = c("O2", "CO2", "WVP"),
-    # Lag = unlist(xcorr_analysis()$lags)
-    #)
-  #}, rownames = FALSE, digits = 0) 
+    data.frame(
+      Channel = c("O2", "CO2", "WVP"),
+     Lag = unlist(xcorr_analysis()$lags)
+    )
+  }, rownames = FALSE, digits = 0) 
   
   
   
   
   
   #______________________________________________________________________
-  ## 2.10) Plot cross-correlation results ----
+  ## 2.7) Plot cross-correlation results ----
   #______________________________________________________________________
   output$ccfPlot <- renderPlot({
     req(xcorr_analysis())
@@ -986,7 +930,7 @@ server <- function(input, output, session) {
   
   
   #______________________________________________________________________
-  ## 2.11) Min. and Max. seconds lag-corrected ----
+  ## 1.X) Min. and Max. seconds lag-corrected ----
   #______________________________________________________________________
   min_max_seconds <- reactive({
     req(df_lag())
@@ -1002,7 +946,7 @@ server <- function(input, output, session) {
   
   
   #______________________________________________________________________
-  ## REMOVED 2.9) Head of lag-corrected data frame ----
+  ## 2.9) Head of lag-corrected data frame ----
   #______________________________________________________________________
   #output$LagCorrTable <- renderDT({
    # req(df_lag())
@@ -1356,7 +1300,7 @@ server <- function(input, output, session) {
                       min = min(df$Seconds),
                       max = max(df$Seconds),
                       value = c(min(df$Seconds), 
-                                max(df$Seconds)))
+                                max(df$Seconds)/5))
   })
   
   
@@ -1397,213 +1341,98 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   ## 4.2) Plot data to analyze ----
   #______________________________________________________________________
-  # 
-  # output$plotPreAnalysis <- renderPlot({
-  #   req(drift_table())
-  #   req(dataframe_drift())
-  #   req(markers_df())
-  #   req(params())
-  #   
-  #   
-  #   # Define colors for different channels
-  #   cols <- viridis(params()$N.frogs, option = "turbo")
-  #   cols <- c("grey70", cols) # add grey baseline.
-  #   cols <- setNames(cols, unique(markers_df()$Marker)) #set names for each color.
-  #   
-  #   
-  #   # Plots
-  #   pO2 <- ggplot(dataframe_drift(), aes(x = Seconds))+
-  #     geom_rect(data = markers_df(), 
-  #               aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
-  #               inherit.aes = FALSE,
-  #               alpha = 0.2) +
-  #     scale_fill_manual(values = cols) +
-  #     geom_hline(yintercept = 0, col = "grey70", linetype = "dashed")+
-  #     geom_line(aes(y = O2_lagdriftcorrected), col = "black")+
-  #     #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
-  #     coord_cartesian(xlim = input$x_zoom_tab4)+
-  #     theme_bw()+
-  #     theme(panel.grid.major = element_blank(), 
-  #           panel.grid.minor = element_blank())
-  #   
-  #   
-  #   pCO2 <- ggplot(dataframe_drift(), aes(x = Seconds))+
-  #     geom_rect(data = markers_df(), 
-  #               aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
-  #               inherit.aes = FALSE,
-  #               alpha = 0.2) +
-  #     scale_fill_manual(values = cols) +
-  #     geom_hline(yintercept = 0, col = "grey70", linetype = "dashed")+
-  #     geom_line(aes(y = CO2_lagdriftcorrected), col = "black")+
-  #     # lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
-  #     coord_cartesian(xlim = input$x_zoom_tab4)+
-  #     theme_bw()+
-  #     theme(panel.grid.major = element_blank(), 
-  #           panel.grid.minor = element_blank())
-  #   
-  #   
-  #   pWVP <- ggplot(dataframe_drift(), aes(x = Seconds))+
-  #     geom_rect(data = markers_df(), 
-  #               aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
-  #               inherit.aes = FALSE,
-  #               alpha = 0.2) +
-  #     scale_fill_manual(values = cols) +
-  #     geom_line(aes(y = WVP_lagcorrected), col = "black")+
-  #     #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
-  #     coord_cartesian(xlim = input$x_zoom_tab4)+
-  #     theme_bw()+
-  #     theme(panel.grid.major = element_blank(), 
-  #           panel.grid.minor = element_blank())
-  #   
-  #   pFlowRate <- ggplot(dataframe_drift(), aes(x = Seconds))+
-  #     geom_rect(data = markers_df(), 
-  #               aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
-  #               inherit.aes = FALSE,
-  #               alpha = 0.2) +
-  #     scale_fill_manual(values = cols) +
-  #     geom_line(aes(y = FlowRate), col = "black")+
-  #     # lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
-  #     coord_cartesian(xlim = input$x_zoom_tab4)+
-  #     theme_bw()+
-  #     theme(panel.grid.major = element_blank(), 
-  #           panel.grid.minor = element_blank())
-  #   
-  #   
-  #   pBP <- ggplot(dataframe_drift(), aes(x = Seconds))+
-  #     geom_rect(data = markers_df(), 
-  #               aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
-  #               inherit.aes = FALSE,
-  #               alpha = 0.2) +
-  #     scale_fill_manual(values = cols) +
-  #     geom_line(aes(y = BP), col = "black")+
-  #     #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
-  #     coord_cartesian(xlim = input$x_zoom_tab4)+
-  #     theme_bw()+
-  #     theme(panel.grid.major = element_blank(), 
-  #           panel.grid.minor = element_blank())
-  #   
-  #   # Combine plots
-  #   cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, pBP, ncol = 1, align = "hv")
-  #   
-  # })
-  # 
-  # 
-  # 
-  #______________________________________________________________________
-  ## 4.2X) WORKING Create plot ----
-  #______________________________________________________________________
   
-  preAnalysisPlot <- reactive({
+  output$plotPreAnalysis <- renderPlot({
     req(drift_table())
     req(dataframe_drift())
     req(markers_df())
     req(params())
-    req(input$x_zoom_tab4)
     
-    # Define colors
+    
+    # Define colors for different channels
     cols <- viridis(params()$N.frogs, option = "turbo")
-    cols <- c("grey70", cols)
-    cols <- setNames(cols, unique(markers_df()$Marker))
+    cols <- c("grey70", cols) # add grey baseline.
+    cols <- setNames(cols, unique(markers_df()$Marker)) #set names for each color.
     
-    base_theme <- theme_bw() +
-      theme(panel.grid.major = element_blank(),
+    
+    # Plots
+    pO2 <- ggplot(dataframe_drift(), aes(x = Seconds))+
+      geom_rect(data = markers_df(), 
+                aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+                inherit.aes = FALSE,
+                alpha = 0.2) +
+      scale_fill_manual(values = cols) +
+      geom_hline(yintercept = 0, col = "grey70", linetype = "dashed")+
+      geom_line(aes(y = O2_lagdriftcorrected), col = "black")+
+      #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+      coord_cartesian(xlim = input$x_zoom_tab4)+
+      theme_bw()+
+      theme(panel.grid.major = element_blank(), 
             panel.grid.minor = element_blank())
     
-    pO2 <- ggplot(dataframe_drift(), aes(x = Seconds)) +
-      geom_rect(
-        data = markers_df(),
-        aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker),
-        inherit.aes = FALSE, alpha = 0.2
-      ) +
-      scale_fill_manual(values = cols) +
-      geom_hline(yintercept = 0, col = "grey70", linetype = "dashed") +
-      geom_line(aes(y = O2_lagdriftcorrected), col = "black") +
-      coord_cartesian(xlim = input$x_zoom_tab4) +
-      base_theme
     
-    pCO2 <- ggplot(dataframe_drift(), aes(x = Seconds)) +
-      geom_rect(
-        data = markers_df(),
-        aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker),
-        inherit.aes = FALSE, alpha = 0.2
-      ) +
+    pCO2 <- ggplot(dataframe_drift(), aes(x = Seconds))+
+      geom_rect(data = markers_df(), 
+                aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+                inherit.aes = FALSE,
+                alpha = 0.2) +
       scale_fill_manual(values = cols) +
-      geom_hline(yintercept = 0, col = "grey70", linetype = "dashed") +
-      geom_line(aes(y = CO2_lagdriftcorrected), col = "black") +
-      coord_cartesian(xlim = input$x_zoom_tab4) +
-      base_theme
+      geom_hline(yintercept = 0, col = "grey70", linetype = "dashed")+
+      geom_line(aes(y = CO2_lagdriftcorrected), col = "black")+
+      # lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+      coord_cartesian(xlim = input$x_zoom_tab4)+
+      theme_bw()+
+      theme(panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank())
     
-    pWVP <- ggplot(dataframe_drift(), aes(x = Seconds)) +
-      geom_rect(
-        data = markers_df(),
-        aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker),
-        inherit.aes = FALSE, alpha = 0.2
-      ) +
+    
+    pWVP <- ggplot(dataframe_drift(), aes(x = Seconds))+
+      geom_rect(data = markers_df(), 
+                aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+                inherit.aes = FALSE,
+                alpha = 0.2) +
       scale_fill_manual(values = cols) +
-      geom_line(aes(y = WVP_lagcorrected), col = "black") +
-      coord_cartesian(xlim = input$x_zoom_tab4) +
-      base_theme
+      geom_line(aes(y = WVP_lagcorrected), col = "black")+
+      #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+      coord_cartesian(xlim = input$x_zoom_tab4)+
+      theme_bw()+
+      theme(panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank())
     
-    pFlowRate <- ggplot(dataframe_drift(), aes(x = Seconds)) +
-      geom_rect(
-        data = markers_df(),
-        aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker),
-        inherit.aes = FALSE, alpha = 0.2
-      ) +
+    pFlowRate <- ggplot(dataframe_drift(), aes(x = Seconds))+
+      geom_rect(data = markers_df(), 
+                aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+                inherit.aes = FALSE,
+                alpha = 0.2) +
       scale_fill_manual(values = cols) +
-      geom_line(aes(y = FlowRate), col = "black") +
-      coord_cartesian(xlim = input$x_zoom_tab4) +
-      base_theme
+      geom_line(aes(y = FlowRate), col = "black")+
+      # lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+      coord_cartesian(xlim = input$x_zoom_tab4)+
+      theme_bw()+
+      theme(panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank())
     
-    pBP <- ggplot(dataframe_drift(), aes(x = Seconds)) +
-      geom_rect(
-        data = markers_df(),
-        aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker),
-        inherit.aes = FALSE, alpha = 0.2
-      ) +
+    
+    pBP <- ggplot(dataframe_drift(), aes(x = Seconds))+
+      geom_rect(data = markers_df(), 
+                aes(xmin = Begin_time, xmax = End_time, ymin = -Inf, ymax = Inf, fill = Marker), 
+                inherit.aes = FALSE,
+                alpha = 0.2) +
       scale_fill_manual(values = cols) +
-      geom_line(aes(y = BP), col = "black") +
-      coord_cartesian(xlim = input$x_zoom_tab4) +
-      base_theme
+      geom_line(aes(y = BP), col = "black")+
+      #lims(x = c(min(drift_table()$Begin), max(drift_table()$End)))+
+      coord_cartesian(xlim = input$x_zoom_tab4)+
+      theme_bw()+
+      theme(panel.grid.major = element_blank(), 
+            panel.grid.minor = element_blank())
     
-    cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, pBP,
-                       ncol = 1, align = "hv")
-  })
-  
-  #______________________________________________________________________
-  ## 4.2XX) WORKING Render plot ----
-  #______________________________________________________________________
-  
-  output$plotPreAnalysis <- renderPlot({
-    preAnalysisPlot()
+    # Combine plots
+    cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, pBP, ncol = 1, align = "hv")
+    
   })
   
   
   
-  #______________________________________________________________________
-  ## 4.2XX) WORKING Download plot ----
-  #______________________________________________________________________
-  
-  output$downloadPreAnalysisPDF <- downloadHandler(
-    filename = function() {
-      req(filename())
-      
-      base <- sub("\\.csv", "", filename())
-      
-      paste0(base, "_plot.pdf")
-      #paste0("pre_analysis_plot_", Sys.Date(), ".pdf")
-    },
-    content = function(file) {
-      ggsave(
-        filename = file,
-        plot = preAnalysisPlot(),
-        device = cairo_pdf,   # better text rendering
-        width = 17,
-        height = 19,
-        units = "in"
-      )
-    }
-  )
   
   
   
