@@ -687,16 +687,16 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   ## 2.4) Small table for cross-correlation window ----
   #______________________________________________________________________
-  # output$xcorr_window_table <- renderTable({
-  # req(input$x_zoom2)
-  # 
-  #   data.frame(
-  #     Start =  input$x_zoom2[[1]],
-  #     End =  input$x_zoom2[[2]]
-  #   )
-  # }, rownames = FALSE)
-  # 
-  # 
+  #output$xcorr_window_table <- renderTable({
+  #  req(input$x_zoom2)
+    
+   # data.frame(
+    #  Start =  input$x_zoom2[[1]],
+     # End =  input$x_zoom2[[2]]
+#    )
+ # }, rownames = FALSE) 
+  
+  
   #______________________________________________________________________
   ## 2.5) Run cross-correlation analysis ----
   #______________________________________________________________________
@@ -811,61 +811,61 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   ## 2.7) Plot lag correction ----
   #______________________________________________________________________
-   # output$plotLag <- renderPlot({
-   #  
-   #   req(datafile())
-   #   req(df_lag())
-   #   req(xcorr_analysis())
-   #   req(input$x_zoom2) 
-   #  
-   #   df <- datafile()
-   #   df_lag <- df_lag()
-   #  
-   #   pO2 <- ggplot(df_lag, aes(x = Seconds)) +
-   #     geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-   #     geom_line(aes(y = O2, color = "original"), linewidth = 1) +
-   #     geom_line(data = df_lag, aes(y = O2_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
-   #     scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
-   #     theme_minimal(base_size = 14) +
-   #     labs(title =  "O2 vs Time", x = "Seconds", y = "O2", color = "")+
-   #     my_theme+
-   #     lims(x =  input$x_zoom2)
-   #  
-   #   pCO2 <- ggplot(df_lag, aes(x = Seconds)) +
-   #     geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-   #     geom_line(aes(y = CO2, color = "original"), linewidth = 1) +
-   #     geom_line(data = df_lag, aes(y = CO2_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
-   #     scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
-   #     theme_minimal(base_size = 14) +
-   #     labs(title =  "CO2 vs Time", x = "Seconds", y = "CO2", color = "")+
-   #     my_theme+
-   #     theme(legend.position = "right")+
-   #     guides(linetype = guide_legend(override.aes = list(size = 2)))+
-   #     lims(x = input$x_zoom2)
-   #  
-   #   pWVP <- ggplot(df_lag, aes(x = Seconds)) +
-   #     geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
-   #     geom_line(aes(y = WVP, color = "original"), linewidth = 1) +
-   #     geom_line(data = df_lag, aes(y = WVP_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
-   #     scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
-   #     theme_minimal(base_size = 14) +
-   #     labs(title =  "WVP vs Time", x = "Seconds", y = "WVP", color = "")+
-   #     my_theme+
-   #     lims(x = input$x_zoom2)
-   #  
-   #   pFlowRate <- ggplot(df_lag, aes(x = Seconds)) +
-   #     geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkblue", linetype = "solid", alpha = 0.4)+
-   #     geom_line(aes(y = FlowRate, color = "original"), linewidth = 1) +
-   #     scale_color_manual(values = c("original" = "royalblue3")) +
-   #     theme_minimal(base_size = 14) +
-   #     labs(title =  "FlowRate vs Time - REFERENCE", x = "Seconds", y = "FlowRate", color = "")+
-   #     my_theme+
-   #     lims(x = input$x_zoom2)
-   #  
-   #   cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, ncol = 1, align = "hv")
-   #  
-   # },  height = 799)
-   # 
+   output$plotLag <- renderPlot({
+    
+     req(datafile())
+     req(df_lag())
+     req(xcorr_analysis())
+     req(input$x_zoom2) 
+    
+     df <- datafile()
+     df_lag <- df_lag()
+    
+     pO2 <- ggplot(df_lag, aes(x = Seconds)) +
+       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
+       geom_line(aes(y = O2, color = "original"), linewidth = 1) +
+       geom_line(data = df_lag, aes(y = O2_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
+       scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
+       theme_minimal(base_size = 14) +
+       labs(title =  "O2 vs Time", x = "Seconds", y = "O2", color = "")+
+       my_theme+
+       lims(x =  input$x_zoom2)
+    
+     pCO2 <- ggplot(df_lag, aes(x = Seconds)) +
+       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
+       geom_line(aes(y = CO2, color = "original"), linewidth = 1) +
+       geom_line(data = df_lag, aes(y = CO2_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
+       scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
+       theme_minimal(base_size = 14) +
+       labs(title =  "CO2 vs Time", x = "Seconds", y = "CO2", color = "")+
+       my_theme+
+       theme(legend.position = "right")+
+       guides(linetype = guide_legend(override.aes = list(size = 2)))+
+       lims(x = input$x_zoom2)
+    
+     pWVP <- ggplot(df_lag, aes(x = Seconds)) +
+       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkred", linetype = "solid", alpha = 0.4)+
+       geom_line(aes(y = WVP, color = "original"), linewidth = 1) +
+       geom_line(data = df_lag, aes(y = WVP_lagcorrected, color = "corrected"), inherit.aes = TRUE, linewidth = 1) +
+       scale_color_manual(values = c("original" = "grey70", "corrected" = "black")) +
+       theme_minimal(base_size = 14) +
+       labs(title =  "WVP vs Time", x = "Seconds", y = "WVP", color = "")+
+       my_theme+
+       lims(x = input$x_zoom2)
+    
+     pFlowRate <- ggplot(df_lag, aes(x = Seconds)) +
+       geom_vline(xintercept =  df$Seconds[df$Marker != -1], color = "darkblue", linetype = "solid", alpha = 0.4)+
+       geom_line(aes(y = FlowRate, color = "original"), linewidth = 1) +
+       scale_color_manual(values = c("original" = "royalblue3")) +
+       theme_minimal(base_size = 14) +
+       labs(title =  "FlowRate vs Time - REFERENCE", x = "Seconds", y = "FlowRate", color = "")+
+       my_theme+
+       lims(x = input$x_zoom2)
+    
+     cowplot::plot_grid(pO2, pCO2, pWVP, pFlowRate, ncol = 1, align = "hv")
+    
+   },  height = 799)
+  
   
   #______________________________________________________________________
   ## 2.8) PlotLY lag correction ----
@@ -935,18 +935,18 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   ##REMOVED 2.9) DF Table for lags ----
   #______________________________________________________________________
- # output$lags_table <- renderTable({
- #    req(xcorr_analysis())
- #    
- #    # Create a small data frame
- #    data.frame(
- #      Channel = c("O2", "CO2", "WVP"),
- #     Lag = unlist(xcorr_analysis()$lags)
- #    )
- #  }, rownames = FALSE, digits = 0) 
- #  
- #  
- #  
+ #output$lags_table <- renderTable({
+  #  req(xcorr_analysis())
+    
+    # Create a small data frame
+   # data.frame(
+    #  Channel = c("O2", "CO2", "WVP"),
+    # Lag = unlist(xcorr_analysis()$lags)
+    #)
+  #}, rownames = FALSE, digits = 0) 
+  
+  
+  
   
   
   #______________________________________________________________________
@@ -1004,23 +1004,23 @@ server <- function(input, output, session) {
   #______________________________________________________________________
   ## REMOVED 2.9) Head of lag-corrected data frame ----
   #______________________________________________________________________
-  # output$LagCorrTable <- renderDT({
-  #   req(df_lag())
-  #   
-  #   datatable(
-  #     head(df_lag(), 25),
-  #     options = list(
-  #       scrollX = TRUE,        
-  #       scrollY = "400px",     
-  #       scrollCollapse = TRUE,
-  #       paging = FALSE,        
-  #       searching = FALSE,     
-  #       info = FALSE         
-  #     ),
-  #     rownames = FALSE
-  #   )
-  # })
-  # 
+  #output$LagCorrTable <- renderDT({
+   # req(df_lag())
+    
+    #datatable(
+     # head(df_lag(), 25),
+      #options = list(
+       # scrollX = TRUE,        
+        #scrollY = "400px",     
+#        scrollCollapse = TRUE,
+ #       paging = FALSE,        
+  #      searching = FALSE,     
+   #     info = FALSE         
+    #  ),
+     # rownames = FALSE
+#    )
+  #})
+  
   
   
   

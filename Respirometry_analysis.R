@@ -39,6 +39,7 @@ folder <- "/data/"
 #filename <- read.csv("data/Data_06-24-2025_001_DAY_LagDrift.csv")
 #str(filename_test)
 filename <- "Data_06-24-2025_001_DAY.txt"
+filename <- "Data_05-09-2025_001_NIGHT.txt"
 #filename <- "Data_06-29-2025_001_DAY_LagDrift.txt" # n_frogs = 7, n_reps = 4
 #filename <- "Data_06-24-2025_001_DAY_LagDrift.txt" #n_frogs = 5, n_reps = 6
 #filename <- "Data_06-27-2025_001_DAY_LagDrift.txt" #n_frogs = 7, n_reps = 4
@@ -60,11 +61,14 @@ df$Minutes <- df$Seconds/60
 df[1, 8] <- 50
 head(df)
 # Define number of frogs and repetitions
-nfrogs <- 5
+nfrogs <- 5  
 nreps <- 7
 
-marker_times <- df$Seconds[df$Marker != -1];length(marker_times)
-marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B");length(marker_names)
+marker_times <- df$Seconds[df$Marker != -1]
+marker_names <- c(rep(c("B", as.character(2:(nfrogs+1))), nreps+1), "B", "B")
+length(marker_times)
+length(marker_names)
+
 #marker_names[length(marker_names)] <- "B"  # set last one to "B"
 names(marker_times) <- marker_names
 marker_times
